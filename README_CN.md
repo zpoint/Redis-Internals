@@ -16,9 +16,9 @@
 
 # 为什么创建这个仓库
 
-* learning purpose
-* there are very good chinese [learning material](#learning-material), but no english version
-* the book in [learning material](#learning-material) is based on redis 3.0, the implenentation detail may changed a lot from 3.0 to the current version
+* 出于学习目的
+* 在 [学习资料](#学习资料) 中有非常棒的中文书籍可以参考, 但是没有类似的英文资料
+* [Redis 设计与实现](http://redisbook.com/) 一书s是基于 redis 3.0 版本的(我读的时候是旧版 基于2.x版本), 即使是 redis 3.0 到当前版本许多实现细节也发生了变化
 
 # 学习资料
 
