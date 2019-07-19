@@ -1,6 +1,6 @@
 # Redis Internals
 
-* [English](https://github.com/zpoint/Redis-Internals/blob/master/README.md)
+* [English](https://github.com/zpoint/Redis-Internals/blob/5.0/README.md)
 
 这个仓库是我分析 [redis](https://github.com/antirez/redis) 源码时做的记录
 

@@ -1,6 +1,6 @@
 # Redis Internals
 
-* [简体中文](https://github.com/zpoint/Redis-Internals/blob/master/README_CN.md)
+* [简体中文](https://github.com/zpoint/Redis-Internals/blob/5.0/README_CN.md)
 
 This repository is my notes for [redis](https://github.com/antirez/redis) source code
 
