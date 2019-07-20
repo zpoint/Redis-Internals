@@ -12,6 +12,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 # Table of Contents
 
 * [Why this repo](#Why-this-repo)
+* [Objects](#Objects)
 * [Learning material](#Learning-material)
 
 # Why this repo
@@ -19,6 +20,9 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 * learning purpose
 * there are very good chinese [learning material](#learning-material), but no english version
 * the book in [learning material](#learning-material) is based on redis 3.0, the implenentation detail may changed a lot from 3.0 to the current version
+
+# Objects
+ - [ ] [sds(string)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
 
 # Learning material
 
