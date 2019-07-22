@@ -6,7 +6,9 @@
 * [memory layout](#memory-layout)
 * [example](#example)
 	* [OBJ_ENCODING_RAW](#OBJ_ENCODING_RAW)
+		* [why 44 bytes](#why-44-bytes)
 	* [OBJ_ENCODING_EMBSTR](#OBJ_ENCODING_EMBSTR)
+	* [REDIS_ENCODING_INT](#REDIS_ENCODING_INT)
 	* [sdshdr5](#sdshdr5)
 	* [sdshdr8](#sdshdr8)
 	* [sdshdr16](#sdshdr16)
@@ -27,9 +29,9 @@
 > SDS is a string library for C designed to augment the limited libc string handling functionalities by adding heap allocated strings that are:
 
 > * Simpler to use.
-* Binary safe.
-* Computationally more efficient.
-* But yet... Compatible with normal C string functions.
+> * Binary safe.
+> * Computationally more efficient.
+> * But yet... Compatible with normal C string functions.
 
 for more introduction and API overview, please refer to [sds](https://github.com/antirez/sds)
 
@@ -58,10 +60,10 @@ For type **string**, there're totally two different encoding **OBJ_ENCODING_RAW*
 
 ## OBJ_ENCODING_RAW
 
-	127.0.0.1:6379> SET AA "hello world!"
-	OK
-    127.0.0.1:6379> GET AA
-    "hello world!"
+    127.0.0.1:6379> SET AA "hello world!"
+    OK
+    127.0.0.1:6379> OBJECT ENCODING AA
+    "embstr"
 
 This is the layout of the C structure of the string object `AA`
 
@@ -75,9 +77,32 @@ And because the length of the buffer is lower than 44, the encoding is `OBJ_ENCO
 
 ![emb_str](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/emb_str.png)
 
+The low level detail of [bit field in C](https://stackoverflow.com/questions/8564532/colon-in-c-struct-what-does-it-mean) implement in my machine looks like the below picture
 
+My machine is a little-endian machine, `type` and `encoding` live together inside the first byte, and `lru` takes the rest 24 bits, they fits into a single word size
 
+![bit-field](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/bit-field.png)
 
+### why 44 bytes
+
+there may exist [python like memory management mechanism](https://github.com/zpoint/CPython-Internals/blob/master/Interpreter/memory_management/memory_management.md) in redis, I will figure out later
+
+the sum of smallest size of **sds header**, **robj** and 44 extra bytes is less than 64 bytes, it can fits into a single memory block
+
+## OBJ_ENCODING_EMBSTR
+
+    127.0.0.1:6379> SET AA "this is a string longer than 44 characters!!!"
+    OK
+    127.0.0.1:6379> OBJECT ENCODING AA
+    "raw"
+
+If you create a string with length greater than 44 bytes, the encoding will change
+
+The address of **robj** and **sds** structure will not in contiguously memory any more, there're at least two malloc system call need to be called
+
+![raw_str](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/raw_str.png)
+
+## REDIS_ENCODING_INT
 
 # read more
 * [sds](https://github.com/antirez/sds)
