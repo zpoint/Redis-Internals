@@ -41,9 +41,7 @@ There're various different layout depends on the actual string length
 
 # example
 
-There're various different encoding depending on the type and the object stored inside the type
-
-For type **string**, there're totally two different encoding **OBJ_ENCODING_RAW** and **OBJ_ENCODING_EMBSTR**
+For type **string**, there're totally three different encoding **OBJ_ENCODING_RAW**, **OBJ_ENCODING_EMBSTR** and **REDIS_ENCODING_INT**
 
 	/* redis/src/object.c */
      * The current limit of 44 is chosen so that the biggest string object
@@ -103,6 +101,15 @@ The address of **robj** and **sds** structure will not in contiguously memory an
 ![raw_str](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/raw_str.png)
 
 ## REDIS_ENCODING_INT
+
+    127.0.0.1:6379> SET AA 13
+    OK
+    127.0.0.1:6379> OBJECT ENCODING AA
+    "int"
+
+**refcount** of the int value is **UINT_MAX**, **ptr** stores the actual integer value, represent in **long** format
+
+![int_str](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/int_str.png)
 
 # read more
 * [sds](https://github.com/antirez/sds)
