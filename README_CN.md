@@ -11,19 +11,18 @@
 
 # 目录
 
-* [为什么创建这个仓库](#为什么创建这个仓库)
 * [基本对象](#基本对象)
+* [为什么创建这个仓库](#为什么创建这个仓库)
 * [学习资料](#学习资料)
+
+# 基本对象
+ - [ ] [sds(字符串)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
 
 # 为什么创建这个仓库
 
 * 出于学习目的
 * 在 [学习资料](#学习资料) 中有非常棒的中文书籍可以参考, 但是没有类似的英文资料
-* [Redis 设计与实现](http://redisbook.com/) 一书s是基于 redis 3.0 版本的(我读的时候是旧版 基于2.x版本), 即使是 redis 3.0 到当前版本许多实现细节也发生了变化
-
-# 基本对象
- - [ ] [sds(字符串)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
-
+* [Redis 设计与实现](http://redisbook.com/) 一书当前是基于 redis 3.0 版本的(我读的时候是旧版 基于2.x版本), 即使是 redis 3.0 到当前版本许多实现细节也发生了变化
 
 # 学习资料
 * [Redis 设计与实现](http://redisbook.com/)
