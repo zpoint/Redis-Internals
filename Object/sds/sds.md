@@ -111,5 +111,28 @@ The address of **robj** and **sds** structure will not in contiguously memory an
 
 ![int_str](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/int_str.png)
 
+	/* redis/src/object.c */
+    len = sdslen(s);
+    if (len <= 20 && string2l(s,len,&value)) {
+        /* This object is encodable as a long. Try to use a shared object.
+         * Note that we avoid using shared integers when maxmemory is used
+         * because every object needs to have a private LRU field for the LRU
+         * algorithm to work well. */
+        if ((server.maxmemory == 0 ||
+            !(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&
+            value >= 0 &&
+            value < OBJ_SHARED_INTEGERS)
+        {
+            decrRefCount(o);
+            incrRefCount(shared.integers[value]);
+            return shared.integers[value];
+        } else {
+            if (o->encoding == OBJ_ENCODING_RAW) sdsfree(o->ptr);
+            o->encoding = OBJ_ENCODING_INT;
+            o->ptr = (void*) value;
+            return o;
+        }
+    }
+
 # read more
 * [sds](https://github.com/antirez/sds)
