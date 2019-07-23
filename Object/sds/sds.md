@@ -4,16 +4,17 @@
 
 * [related file](#related-file)
 * [memory layout](#memory-layout)
-* [example](#example)
-	* [OBJ_ENCODING_RAW](#OBJ_ENCODING_RAW)
-		* [why 44 bytes](#why-44-bytes)
-	* [OBJ_ENCODING_EMBSTR](#OBJ_ENCODING_EMBSTR)
-	* [REDIS_ENCODING_INT](#REDIS_ENCODING_INT)
-	* [sdshdr5](#sdshdr5)
-	* [sdshdr8](#sdshdr8)
-	* [sdshdr16](#sdshdr16)
-	* [sdshdr32](#sdshdr32)
-	* [sdshdr64](#sdshdr64)
+* [encoding](#encoding)
+    * [OBJ_ENCODING_RAW](#OBJ_ENCODING_RAW)
+        * [why 44 bytes](#why-44-bytes)
+    * [OBJ_ENCODING_EMBSTR](#OBJ_ENCODING_EMBSTR)
+    * [REDIS_ENCODING_INT](#REDIS_ENCODING_INT)
+* [string header](#string-header)
+    * [sdshdr5](#sdshdr5)
+    * [sdshdr8](#sdshdr8)
+    * [sdshdr16](#sdshdr16)
+    * [sdshdr32](#sdshdr32)
+    * [sdshdr64](#sdshdr64)
 * [read more](#read-more)
 
 # related file
@@ -39,8 +40,6 @@ There're various different layout depends on the actual string length
 
 ![sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.png)
 
-# example
-
 For type **string**, there're totally three different encoding **OBJ_ENCODING_RAW**, **OBJ_ENCODING_EMBSTR** and **REDIS_ENCODING_INT**
 
 	/* redis/src/object.c */
@@ -55,6 +54,8 @@ For type **string**, there're totally three different encoding **OBJ_ENCODING_RA
         	/* OBJ_ENCODING_RAW */
             return createRawStringObject(ptr,len);
     }
+
+# encoding
 
 ## OBJ_ENCODING_RAW
 
@@ -133,6 +134,68 @@ The address of **robj** and **sds** structure will not in contiguously memory an
             return o;
         }
     }
+
+We can learn from the above source code that if the length is less or equal than 20 and it's convertible to a long value, the value will be represented and stored as a **long** value in **ptr**
+
+Let's verify our assumption, `long` is 64 bits in my machine, `1 << 63` is `9223372036854775808`, because `long` is a signed type, the max value fits into `long` is `(1 << 63) - 1`
+
+    127.0.0.1:6379> SET AA 9223372036854775806
+    OK
+    127.0.0.1:6379> OBJECT ENCODING AA
+    "int"
+    127.0.0.1:6379> INCR AA
+    (integer) 9223372036854775807
+
+If we increment the value again, it will overflow, you need to `SET` the new value and redis will encoded it as an `embstr`
+
+    127.0.0.1:6379> INCR AA
+    (error) ERR increment or decrement would overflow
+    127.0.0.1:6379> SET AA 9223372036854775808
+    OK
+    127.0.0.1:6379> OBJECT ENCODING AA
+    "embstr"
+
+# string header
+
+there're various different kinds of **string header type** depending on the length of the actual string
+
+	redis/src/sds.c
+    static inline char sdsReqType(size_t string_size) {
+        if (string_size < 1<<5)
+            return SDS_TYPE_5;
+        if (string_size < 1<<8)
+            return SDS_TYPE_8;
+        if (string_size < 1<<16)
+            return SDS_TYPE_16;
+    #if (LONG_MAX == LLONG_MAX)
+        if (string_size < 1ll<<32)
+            return SDS_TYPE_32;
+        return SDS_TYPE_64;
+    #else
+        return SDS_TYPE_32;
+    #endif
+    }
+
+## sdshdr5
+
+**sdshdr5** is never used by the user, it packs the **length** and **string header type** is the same byte
+
+![sdshdr5](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sdshdr5.png)
+
+## sdshdr8
+
+**sdshdr5** use **uint_8**(1 byte) to store **len** and **alloc**
+
+    127.0.0.1:6379> SET AA "hello"
+    OK
+
+![sdshdr8](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sdshdr8.png)
+
+## sdshdr16
+
+## sdshdr32
+
+## sdshdr64
 
 # read more
 * [sds](https://github.com/antirez/sds)
