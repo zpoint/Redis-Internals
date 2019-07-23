@@ -16,7 +16,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 * [Learning material](#Learning-material)
 
 # Objects
- - [ ] [sds(string)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
+ - [x] [sds(string)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
 
 # Why this repo
 

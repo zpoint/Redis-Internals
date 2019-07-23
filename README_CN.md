@@ -16,7 +16,7 @@
 * [学习资料](#学习资料)
 
 # 基本对象
- - [ ] [sds(字符串)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
+ - [x] [sds(字符串)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md)
 
 # 为什么创建这个仓库
 

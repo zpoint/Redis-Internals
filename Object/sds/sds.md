@@ -40,7 +40,11 @@ There're various different layout depends on the actual string length
 
 ![sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.png)
 
+# encoding
+
 For type **string**, there're totally three different encoding **OBJ_ENCODING_RAW**, **OBJ_ENCODING_EMBSTR** and **REDIS_ENCODING_INT**
+
+(encoding is used for diff how redis encode the redis object, while sds header will diff various sds memory storage layout, they're different concept)
 
 	/* redis/src/object.c */
      * The current limit of 44 is chosen so that the biggest string object
@@ -54,8 +58,6 @@ For type **string**, there're totally three different encoding **OBJ_ENCODING_RA
         	/* OBJ_ENCODING_RAW */
             return createRawStringObject(ptr,len);
     }
-
-# encoding
 
 ## OBJ_ENCODING_RAW
 
@@ -86,7 +88,7 @@ My machine is a little-endian machine, `type` and `encoding` live together insid
 
 there may exist [python like memory management mechanism](https://github.com/zpoint/CPython-Internals/blob/master/Interpreter/memory_management/memory_management.md) in redis, I will figure out later
 
-the sum of smallest size of **sds header**, **robj** and 44 extra bytes is less than 64 bytes, it can fits into a single memory block
+the sum of smallest size of **sds header**, **robj** and 44 extra bytes is less than 64 bytes, it can fits into a single arena of jemalloc
 
 ## OBJ_ENCODING_EMBSTR
 
@@ -184,7 +186,7 @@ there're various different kinds of **string header type** depending on the leng
 
 ## sdshdr8
 
-**sdshdr5** use **uint_8**(1 byte) to store **len** and **alloc**
+**sdshdr8** use **uint_8**(1 byte) to store **len** and **alloc**
 
     127.0.0.1:6379> SET AA "hello"
     OK
@@ -193,9 +195,23 @@ there're various different kinds of **string header type** depending on the leng
 
 ## sdshdr16
 
+**sdshdr16** use **uint_16**(2 byte) to store **len** and **alloc**
+
+![sdshdr16](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sdshdr16.png)
+
 ## sdshdr32
 
+**sdshdr32** use **uint_32**(4 byte) to store **len** and **alloc**
+
+![sdshdr32](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sdshdr32.png)
+
 ## sdshdr64
+
+**sdshdr64** will only be supported in 64-bit word size machine, **uint_64**(8 byte) is used to store **len** and **alloc**
+
+The maxium length of a string object you are able to created is of length `(1 << 32) - 1`(32 bit machine) or `(1 << 64) - 1`(64 bit machine)
+
+![sdshdr64](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sdshdr64.png)
 
 # read more
 * [sds](https://github.com/antirez/sds)
