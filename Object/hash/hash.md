@@ -6,7 +6,6 @@
 * [encoding](#encoding)
 	* [OBJ_ENCODING_ZIPLIST](#OBJ_ENCODING_ZIPLIST)
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
-* [read more](#read-more)
 
 # related file
 * redis/src/ziplist.h
@@ -26,7 +25,7 @@ This is the overall layout of **ziplist**
 
 ![ziplist_overall_layout](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/ziplist_overall_layout.png)
 
-Let's see a simple example first
+Let's see a simple example
 
     127.0.0.1:6379> HSET AA key1 33
     (integer) 1
@@ -43,4 +42,13 @@ As far as we can learn from the above picture
 
 `zllen` indicates how many entries current **ziplist** have
 
-# read more
+`zlend` is a one byte end mark of the **ziplist**
+
+This is the layout of the two entry
+
+![simple_hash_two_entry](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/simple_hash_two_entry.png)
+
+`prevlen` stores the length of the previous entry, so that you are able to traverse backward, it's either 1 byte represent length as `uint8_t` which is less than 254 or 5 bytes, 1 for mark, the rest 4 can be represent length as `uint32_t`
+
+`encoding` indicate how contents are encoded in the entry, there are various `encoding` for an `entry`, we will see later
+
