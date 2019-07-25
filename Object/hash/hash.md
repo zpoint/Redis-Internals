@@ -26,6 +26,21 @@ This is the overall layout of **ziplist**
 
 ![ziplist_overall_layout](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/ziplist_overall_layout.png)
 
+Let's see a simple example first
 
+    127.0.0.1:6379> HSET AA key1 33
+    (integer) 1
+    127.0.0.1:6379> OBJECT ENCODING AA
+    "ziplist"
+
+![simple_hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/simple_hash.png)
+
+As far as we can learn from the above picture
+
+`zlbytes` is the total bytes the **ziplist** occupy
+
+`zltail` is the offset from current field to `zlend`
+
+`zllen` indicates how many entries current **ziplist** have
 
 # read more
