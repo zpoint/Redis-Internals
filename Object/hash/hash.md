@@ -5,6 +5,10 @@
 * [related file](#related-file)
 * [encoding](#encoding)
 	* [OBJ_ENCODING_ZIPLIST](#OBJ_ENCODING_ZIPLIST)
+		* [entry](#entry)
+			* [prevlen](#prevlen)
+			* [encoding](#encoding)
+			* [entry data](#entry-data)
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
 
 # related file
@@ -51,4 +55,26 @@ This is the layout of the two entry
 `prevlen` stores the length of the previous entry, so that you are able to traverse backward, it's either 1 byte represent length as `uint8_t` which is less than 254 or 5 bytes, 1 for mark, the rest 4 can be represent length as `uint32_t`
 
 `encoding` indicate how contents are encoded in the entry, there are various `encoding` for an `entry`, we will see later
+
+### entry
+
+we now know that entry consists of three parts
+
+#### prevlen
+
+`prevlen` is either 5 bytes or 1 byte, if the first byte of `prevlen` is 254, the following 4 bytes will be an unsigned integer value represent the length
+
+![prevlen](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/prevlen.png)
+
+#### encoding
+
+the representation of the `entry data` depends on the `encoding`, and there are various kinds of `encoding`
+
+![encoding](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/encoding.png)
+
+#### entry data
+
+`entry data` stores the actual data, it's either byte buffer or integer value, the actual representation depends on the `encoding` field
+
+## OBJ_ENCODING_HT
 
