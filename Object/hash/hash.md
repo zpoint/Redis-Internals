@@ -139,13 +139,13 @@ Delete operation will only move all the memory after the current deleted item fo
 
 For example, if we delete the second entry in the following picture
 
-![cascade](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/cascade.png)
+![cascad](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/cascad.png)
 
 After delete and move every memory blocks forward
 
 ![cascad_promotion1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/cascad_promotion1.png)
 
-The 1 byte `prevlen` can stores the length of the previous `entry`, the `ziplist` needs to be `realloc` and `prevlen` will be extended
+The 1 byte `prevlen` can't stores the length of the previous `entry`, the `ziplist` needs to be `realloc` and `prevlen` will be extended
 
 ![cascad_promotion2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/cascad_promotion2.png)
 
@@ -153,11 +153,14 @@ What if the length of the newly extended `entry` now becomes longer than 255 byt
 
 ![cascad_promotion3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/cascad_promotion3.png)
 
+If you have a `ziplist` of N entry, every entry after the deleted entry need to be checked if it needs to be extended
+
 This is the so called **cascad update**
 
 ### upgrade
 
 	/* redis/src/t_hash.c */
+    /* in hset */
     for (i = start; i <= end; i++) {
         if (sdsEncodedObject(argv[i]) &&
             sdslen(argv[i]->ptr) > server.hash_max_ziplist_value)
@@ -166,10 +169,22 @@ This is the so called **cascad update**
             break;
         }
     }
+	/* ... */
+    /* Check if the ziplist needs to be converted to a hash table */
+    if (hashTypeLength(o) > server.hash_max_ziplist_entries)
+        hashTypeConvert(o, OBJ_ENCODING_HT);
 
-if the inserted object in of type [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) and sds length is longer than `hash_max_ziplist_value` (config in configure file, default value is 64), the `ziplist` will be converted to hash table(`OBJ_ENCODING_HT`)
+if the inserted object in of type [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) and sds length is longer than `hash-max-ziplist-value` (you can config it in configure file, default value is 64), the `ziplist` will be converted to hash table(`OBJ_ENCODING_HT`)
+
+Or the length of the `ziplist` after the isertion is loger than `hash-max-ziplist-entries`(default 512), it will also be converted to hash table
 
 ## OBJ_ENCODING_HT
 
+I've set this line `hash-max-ziplist-entries 0` in my configure file
 
+`hset AA key1 12`
+
+this is the layout after set a value
+
+![dict_layout](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/dict_layout.png)
 
