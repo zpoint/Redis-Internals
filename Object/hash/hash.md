@@ -16,6 +16,7 @@
             * [delete](#delete)
 		* [upgrade](#upgrade)
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
+		* [hash collisions](#hash-collisions)
 
 # related file
 * redis/src/ziplist.h
@@ -182,9 +183,125 @@ Or the length of the `ziplist` after the isertion is loger than `hash-max-ziplis
 
 I've set this line `hash-max-ziplist-entries 0` in my configure file
 
-`hset AA key1 12`
+	hset AA key1 12
 
 this is the layout after set a value
 
 ![dict_layout](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/dict_layout.png)
+
+### hash collisions
+
+the [SipHash 1-2](https://en.wikipedia.org/wiki/SipHash)(defined in `redis/src/siphash.c`) is used for redis hash function instead of the [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) used in the previous redis version
+
+according to the annotation in the redis source code, the speed of **SipHash 1-2** is the same as **Murmurhash2**, but the **SipHash 2-4** will slow down redis by a 4% figure more or less
+
+the seed of the hash function is initlalized in the redis server start up
+
+	/* redis/src/server.c */
+    char hashseed[16];
+    getRandomHexChars(hashseed,sizeof(hashseed));
+    dictSetHashFunctionSeed((uint8_t*)hashseed);
+
+because the **hashseed** is random generated, you are not able to predict the index of hash table for different redis instance, or for the same redis server after restart
+
+	hset AA zzz val2
+
+Cpython use a [probing algorithm for hash collisions](https://github.com/zpoint/CPython-Internals/blob/master/BasicObject/dict/dict.md#hash-collisions-and-delete), while redis use single linked list
+
+If two key hash into the same index, they are stored as a single linked list, the latest inserted item in is the front
+
+![dict_collision](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/dict_collision.png)
+
+	hdel AA zzz
+
+The delete operation will find the specific entry in the hash table, and resize if necessary
+
+![dict_delete](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/dict_delete.png)
+
+### resize
+
+the function `_dictExpandIfNeeded` will be called for every dictionary insertion
+
+	/* redis/src/dict.c */
+    /* Expand the hash table if needed */
+    static int _dictExpandIfNeeded(dict *d)
+    {
+        /* Incremental rehashing already in progress. Return. */
+        if (dictIsRehashing(d)) return DICT_OK;
+
+        /* If the hash table is empty expand it to the initial size. */
+        if (d->ht[0].size == 0) return dictExpand(d, DICT_HT_INITIAL_SIZE);
+
+        /* If we reached the 1:1 ratio, and we are allowed to resize the hash
+         * table (global setting) or we should avoid it but the ratio between
+         * elements/buckets is over the "safe" threshold, we resize doubling
+         * the number of buckets. */
+        if (d->ht[0].used >= d->ht[0].size &&
+            (dict_can_resize ||
+             d->ht[0].used/d->ht[0].size > dict_force_resize_ratio))
+        {
+            return dictExpand(d, d->ht[0].used*2);
+        }
+        return DICT_OK;
+    }
+
+
+let's see
+
+    127.0.0.1:6379> del AA
+    (integer) 1
+    127.0.0.1:6379> hset AA 1 2
+    (integer) 1
+    127.0.0.1:6379> hset AA 2 2
+    (integer) 1
+    127.0.0.1:6379> hset AA 3 2
+    (integer) 1
+    127.0.0.1:6379> hset AA 4 2
+    (integer) 1
+
+![resize_before](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_before.png)
+
+
+    127.0.0.1:6379> hset AA 5 2
+    (integer) 1
+
+this time we insert a new entry, the `_dictExpandIfNeeded` will be called and `d->ht[0].used >= d->ht[0].size` will become true, `dictExpand` simply created a new hash table with two times of the old size and stores the newly created hash table to `d->ht[1]`
+
+	/* redis/src/dict.c */
+    /* Expand or create the hash table */
+    int dictExpand(dict *d, unsigned long size)
+    {
+        /* the size is invalid if it is smaller than the number of
+         * elements already inside the hash table */
+        if (dictIsRehashing(d) || d->ht[0].used > size)
+            return DICT_ERR;
+
+        dictht n; /* the new hash table */
+        unsigned long realsize = _dictNextPower(size);
+
+        /* Rehashing to the same table size is not useful. */
+        if (realsize == d->ht[0].size) return DICT_ERR;
+
+        /* Allocate the new hash table and initialize all pointers to NULL */
+        n.size = realsize;
+        n.sizemask = realsize-1;
+        n.table = zcalloc(realsize*sizeof(dictEntry*));
+        n.used = 0;
+
+        /* Is this the first initialization? If so it's not really a rehashing
+         * we just set the first hash table so that it can accept keys. */
+        if (d->ht[0].table == NULL) {
+            d->ht[0] = n;
+            return DICT_OK;
+        }
+
+        /* Prepare a second hash table for incremental rehashing */
+        d->ht[1] = n;
+        d->rehashidx = 0;
+        return DICT_OK;
+    }
+
+because the `rehashidx` is not -1, the new entry will be inserted to `ht[1]`
+
+![resize_before2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_before2.png)
 
