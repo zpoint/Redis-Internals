@@ -17,7 +17,8 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 
 # Objects
  - [x] [string(sds)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
- - [x] [hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md)
+ - [x] [hash(ziplish/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md)
+ - [ ] [list](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list.md)
 
 # Why this repo
 
@@ -28,4 +29,5 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 # Learning material
 
 * [Redis 设计与实现](http://redisbook.com/)
+* [Redis Documentation](https://redis.io/documentation)
 * [Redis 5.0 RELEASENOTES](https://raw.githubusercontent.com/antirez/redis/5.0/00-RELEASENOTES)
