@@ -57,7 +57,7 @@ As far as we can learn from the above picture
 
 `zlend` is a one byte end mark of the **ziplist**
 
-This is the layout of the two entry
+This is the layout of the newly inserted two entry(`key1` and `33`)
 
 ![simple_hash_two_entry](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/simple_hash_two_entry.png)
 

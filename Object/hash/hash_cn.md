@@ -384,7 +384,7 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
 
 如配置文件的注释所说
 
-> Active rehashing 会在每 100 毫秒的间隔中(CPU 时间)拿出额外的 1 毫秒来处理 redis 服务的主哈希表的 rehash 操作(用来存储最顶层 db 的键对值的那张表) redis 中的哈希表使用的是 lazy rehashing 策略(参考 dict.c), 在一张正在 rehash 的表中, 你约频繁的操作这张表, rehash 就会越快的在这张表上转移旧元素到新表中, 所以如果你的 redis 服务处于闲置状态的话, 可能你的主表的 rehash 永远也不会完成, 一直处于 rehash 的状态之中, 会占用额外的内存空间
+> Active rehashing 会在每 100 毫秒的间隔中(CPU 时间)拿出额外的 1 毫秒来处理 redis 服务的主哈希表的 rehash 操作(用来存储最顶层 db 的键对值的那张表) redis 中的哈希表使用的是 lazy rehashing 策略(参考 dict.c), 在一张正在 rehash 的表中, 你越频繁的操作这张表, rehash 就会越快的在这张表上转移旧元素到新表中, 所以如果你的 redis 服务处于闲置状态的话, 可能你的主表的 rehash 永远也不会完成, 一直处于 rehash 的状态之中, 会占用额外的内存空间
 
 > 默认情况下在主表中每秒钟会处理 10 次持续 1 毫秒左右的 rehash, 并且在必要的时候释放空间
 > 如果你不允许超过 2 毫秒的响应延时, 使用 "activerehashing no" 这个配置
