@@ -1,0 +1,7 @@
+*.css linguist-language=C
+*.less linguist-language=C
+*.js linguist-language=C
+*.html linguist-language=C
+*.md linguist-language=C
+*.png linguist-language=C
+

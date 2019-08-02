@@ -17,6 +17,8 @@
 		* [upgrade](#upgrade)
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
 		* [hash collisions](#hash-collisions)
+		* [resize](#resize)
+		* [activerehashing](#activerehashing)
 
 # related file
 * redis/src/ziplist.h
@@ -206,7 +208,7 @@ because the **hashseed** is random generated, you are not able to predict the in
 
 	hset AA zzz val2
 
-Cpython use a [probing algorithm for hash collisions](https://github.com/zpoint/CPython-Internals/blob/master/BasicObject/dict/dict.md#hash-collisions-and-delete), while redis use single linked list
+CPython use a [probing algorithm for hash collisions](https://github.com/zpoint/CPython-Internals/blob/master/BasicObject/dict/dict.md#hash-collisions-and-delete), while redis use single linked list
 
 If two key hash into the same index, they are stored as a single linked list, the latest inserted item in is the front
 
@@ -245,6 +247,7 @@ the function `_dictExpandIfNeeded` will be called for every dictionary insertion
         return DICT_OK;
     }
 
+in order to not affect the server performance, **redis** implements the [incremental resizing](https://en.wikipedia.org/wiki/Hash_table#Incremental_resizing) strategy, the resize operation is not done immediately, it's happening step by step in every CRUD request
 
 let's see
 
@@ -303,5 +306,114 @@ this time we insert a new entry, the `_dictExpandIfNeeded` will be called and `d
 
 because the `rehashidx` is not -1, the new entry will be inserted to `ht[1]`
 
-![resize_before2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_before2.png)
+![resize_middle](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle.png)
+
+if the `rehashidx` is not -1, every CRUD operation will invoke the `rehash` function
+
+    127.0.0.1:6379> hget AA 5
+    "2"
+
+you will notice that `rehashidx` now becomes 1, and the bucket in table index[1] is moved down to the second table
+
+![resize_middle2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle2.png)
+
+    127.0.0.1:6379> hget AA not_exist
+    (nil)
+
+`rehashidx` now becomes 3
+
+![resize_middle3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle3.png)
+
+	127.0.0.1:6379> hget AA 5
+	"2"
+
+if the bucket in index 3 is finished, the hash table is fully transfered, `rehashidx` is set to -1 again, old table will be freed
+
+![resize_done](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_done.png)
+
+and new table now becomes `ht[0]`, the location of the two table will be exchanged
+
+![resize_done_reverse](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_done_reverse.png)
+
+
+	/* redis/src/dict.c */
+    int dictRehash(dict *d, int n) {
+        /* for every HGET command, n is 1 */
+        int empty_visits = n*10; /* Max number of empty buckets to visit. */
+        if (!dictIsRehashing(d)) return 0;
+
+        while(n-- && d->ht[0].used != 0) {
+            /* rehash n bucket */
+            dictEntry *de, *nextde;
+
+            /* Note that rehashidx can't overflow as we are sure there are more
+             * elements because ht[0].used != 0 */
+            assert(d->ht[0].size > (unsigned long)d->rehashidx);
+            while(d->ht[0].table[d->rehashidx] == NULL) {
+                /* skip the empty bucket */
+                d->rehashidx++;
+                if (--empty_visits == 0) return 1;
+            }
+            de = d->ht[0].table[d->rehashidx];
+            /* Move all the keys in this bucket from the old to the new hash HT */
+            while(de) {
+                uint64_t h;
+
+                nextde = de->next;
+                /* Get the index in the new hash table */
+                h = dictHashKey(d, de->key) & d->ht[1].sizemask;
+                de->next = d->ht[1].table[h];
+                d->ht[1].table[h] = de;
+                d->ht[0].used--;
+                d->ht[1].used++;
+                de = nextde;
+            }
+            d->ht[0].table[d->rehashidx] = NULL;
+            d->rehashidx++;
+        }
+
+        /* Check if we already rehashed the whole table... */
+        if (d->ht[0].used == 0) {
+            zfree(d->ht[0].table);
+            d->ht[0] = d->ht[1];
+            _dictReset(&d->ht[1]);
+            d->rehashidx = -1;
+            return 0;
+        }
+
+        /* More to rehash... */
+        return 1;
+    }
+
+### activerehashing
+
+as the configure file says
+
+> Active rehashing uses 1 millisecond every 100 milliseconds of CPU time in order to help rehashing the main Redis hash table (the one mapping top-level keys to values). The hash table implementation Redis uses (see dict.c) performs a lazy rehashing: the more operation you run into a hash table that is rehashing, the more rehashing "steps" are performed, so if the server is idle the rehashing is never complete and some more memory is used by the hash table.
+>
+> The default is to use this millisecond 10 times every second in order to actively rehash the main dictionaries, freeing memory when possible.
+>
+> If unsure: use "activerehashing no" if you have hard latency requirements and it is not a good thing in your environment that Redis can reply from time to time to queries with 2 milliseconds delay.
+>
+> use "activerehashing yes" if you don't have such hard requirements but want to free memory asap when possible.
+
+redis server use a hash table to store every key and value, as we learn from the above examples, the hash table won't take steps rehashing unless you keep searching/modifying the hash table, `activerehashing` is used in the server main loop to help with that
+
+	/* redis/src/server.c */
+    /* Rehash */
+    if (server.activerehashing) {
+        for (j = 0; j < dbs_per_call; j++) {
+            /* try to use 1 millisecond of CPU time at every call of this function to perform some rehahsing */
+            int work_done = incrementallyRehash(rehash_db);
+            if (work_done) {
+                /* If the function did some work, stop here, we'll do
+                 * more at the next cron loop. */
+                break;
+            } else {
+                /* If this db didn't need rehash, we'll try the next one. */
+                rehash_db++;
+                rehash_db %= server.dbnum;
+            }
+        }
+    }
 

@@ -17,7 +17,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 
 # Objects
  - [x] [string(sds)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
- - [ ] [hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md)
+ - [x] [hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md)
 
 # Why this repo
 
