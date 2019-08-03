@@ -310,7 +310,7 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
     127.0.0.1:6379> hget AA 5
     "2"
 
-你可以发 `rehashidx` 变成了 1, 并且在哈希表中的 index[1] 上的整个桶都被移到了第二张表中
+你可以发现 `rehashidx` 变成了 1, 并且在哈希表中的 index[1] 上的整个桶都被移到了第二张表中
 
 ![resize_middle2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle2.png)
 
@@ -387,7 +387,7 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
 > Active rehashing 会在每 100 毫秒的间隔中(CPU 时间)拿出额外的 1 毫秒来处理 redis 服务的主哈希表的 rehash 操作(用来存储最顶层 db 的键对值的那张表) redis 中的哈希表使用的是 lazy rehashing 策略(参考 dict.c), 在一张正在 rehash 的表中, 你越频繁的操作这张表, rehash 就会越快的在这张表上转移旧元素到新表中, 所以如果你的 redis 服务处于闲置状态的话, 可能你的主表的 rehash 永远也不会完成, 一直处于 rehash 的状态之中, 会占用额外的内存空间
 
 > 默认情况下在主表中每秒钟会处理 10 次持续 1 毫秒左右的 rehash, 并且在必要的时候释放空间
-> 如果你不允许超过 2 毫秒的响应延时, 使用 "activerehashing no" 这个配置
+> 如果你无法忍受超过 2 毫秒的响应延时, 使用 "activerehashing no" 这个配置
 > 如果你没有那么高的响应要求, 则用默认的 "activerehashing yes" 即可
 
 redis 服务主表使用哈希表结构存储你设置的所有键对值, 如我们上面所了解的, 哈希表并不会在达到某个阈值之后一次性的扩容完成, 而是在你搜索/更改这张表的时候渐进式的完成扩容, `activerehashing` 这个配置会在主循环中用到, 用来处理空间的 redis 服务无法完成 rehash 的情况

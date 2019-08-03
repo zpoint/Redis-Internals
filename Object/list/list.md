@@ -32,6 +32,14 @@ from [redis quicklist visions](https://matt.sh/redis-quicklist-visions)
 
 ## OBJ_ENCODING_QUICKLIST
 
+    127.0.0.1:6379> lpush lst 123 456
+    (integer) 2
+    127.0.0.1:6379> object encoding lst
+    "quicklist"
+
+![example](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/example.png)
+
+We can learn from the above graph that **quicklist** stores a double linked list, each node in the double linked list is **quicklistNode**, field `zl` in **quicklistNode** points to a **ziplist**, **ziplist** is used and introduced in [hash(ziplist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_ZIPLIST)
 
 # read more
 * [redis quicklist](https://matt.sh/redis-quicklist)
