@@ -193,24 +193,24 @@ this is the layout after set a value
 
 ### hash collisions
 
-the [SipHash 1-2](https://en.wikipedia.org/wiki/SipHash)(defined in `redis/src/siphash.c`) is used for redis hash function instead of the [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) used in the previous redis version
+The [SipHash 1-2](https://en.wikipedia.org/wiki/SipHash)(defined in `redis/src/siphash.c`) is used for redis hash function instead of the [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) used in the previous redis version
 
-according to the annotation in the redis source code, the speed of **SipHash 1-2** is the same as **Murmurhash2**, but the **SipHash 2-4** will slow down redis by a 4% figure more or less
+According to the annotation in the redis source code, the speed of **SipHash 1-2** is the same as **Murmurhash2**, but the **SipHash 2-4** will slow down redis by a 4% figure more or less
 
-the seed of the hash function is initlalized in the redis server start up
+The seed of the hash function is initlalized in the redis server start up
 
 	/* redis/src/server.c */
     char hashseed[16];
     getRandomHexChars(hashseed,sizeof(hashseed));
     dictSetHashFunctionSeed((uint8_t*)hashseed);
 
-because the **hashseed** is random generated, you are not able to predict the index of hash table for different redis instance, or for the same redis server after restart
+Because the **hashseed** is random generated, you are not able to predict the index of hash table for different redis instance, or for the same redis server after restart
 
 	hset AA zzz val2
 
 CPython use a [probing algorithm for hash collisions](https://github.com/zpoint/CPython-Internals/blob/master/BasicObject/dict/dict.md#hash-collisions-and-delete), while redis use single linked list
 
-If two key hash into the same index, they are stored as a single linked list, the latest inserted item in is the front
+If two keys hash into the same index, they are stored as a single linked list, the latest inserted item in is the front
 
 ![dict_collision](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/dict_collision.png)
 
@@ -222,7 +222,7 @@ The delete operation will find the specific entry in the hash table, and resize 
 
 ### resize
 
-the function `_dictExpandIfNeeded` will be called for every dictionary insertion
+The function `_dictExpandIfNeeded` will be called for every dictionary insertion
 
 	/* redis/src/dict.c */
     /* Expand the hash table if needed */
@@ -268,7 +268,7 @@ let's see
     127.0.0.1:6379> hset AA 5 2
     (integer) 1
 
-this time we insert a new entry, the `_dictExpandIfNeeded` will be called and `d->ht[0].used >= d->ht[0].size` will become true, `dictExpand` simply created a new hash table with two times of the old size and stores the newly created hash table to `d->ht[1]`
+This time we insert a new entry, the `_dictExpandIfNeeded` will be called and `d->ht[0].used >= d->ht[0].size` will become true, `dictExpand` simply created a new hash table with two times of the old size and stores the newly created hash table to `d->ht[1]`
 
 	/* redis/src/dict.c */
     /* Expand or create the hash table */
@@ -304,16 +304,16 @@ this time we insert a new entry, the `_dictExpandIfNeeded` will be called and `d
         return DICT_OK;
     }
 
-because the `rehashidx` is not -1, the new entry will be inserted to `ht[1]`
+Because the `rehashidx` is not -1, the new entry will be inserted to `ht[1]`
 
 ![resize_middle](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle.png)
 
-if the `rehashidx` is not -1, every CRUD operation will invoke the `rehash` function
+If the `rehashidx` is not -1, every CRUD operation will invoke the `rehash` function
 
     127.0.0.1:6379> hget AA 5
     "2"
 
-you will notice that `rehashidx` now becomes 1, and the bucket in table index[1] is moved down to the second table
+You will notice that `rehashidx` now becomes 1, and the bucket in table index[1] is moved down to the second table
 
 ![resize_middle2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle2.png)
 
@@ -387,7 +387,7 @@ and new table now becomes `ht[0]`, the location of the two table will be exchang
 
 ### activerehashing
 
-as the configure file says
+As the configure file says
 
 > Active rehashing uses 1 millisecond every 100 milliseconds of CPU time in order to help rehashing the main Redis hash table (the one mapping top-level keys to values). The hash table implementation Redis uses (see dict.c) performs a lazy rehashing: the more operation you run into a hash table that is rehashing, the more rehashing "steps" are performed, so if the server is idle the rehashing is never complete and some more memory is used by the hash table.
 >
@@ -397,7 +397,7 @@ as the configure file says
 >
 > use "activerehashing yes" if you don't have such hard requirements but want to free memory asap when possible.
 
-redis server use a hash table to store every key and value, as we learn from the above examples, the hash table won't take steps rehashing unless you keep searching/modifying the hash table, `activerehashing` is used in the server main loop to help with that
+Redis server use a hash table to store every key and value, as we learn from the above examples, the hash table won't take steps rehashing unless you keep searching/modifying the hash table, `activerehashing` is used in the server main loop to help with that
 
 	/* redis/src/server.c */
     /* Rehash */
