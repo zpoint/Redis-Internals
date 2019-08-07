@@ -18,7 +18,8 @@
 # 基本对象
  - [x] [字符串/string(sds)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md)
  - [x] [哈希/hash(ziplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md)
- - [ ] [list](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list_cn.md)
+ - [x] [列表/list(quicklist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list_cn.md)
+ - [ ] [set](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/set.md)
 
 # 为什么创建这个仓库
 

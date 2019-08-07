@@ -67,21 +67,21 @@ We can learn from the above graph that **quicklist** stores a double linked list
 `fill` indicates the fill factor for individual nodes, what does that mean ?
 
 > Lists are also encoded in a special way to save a lot of space. The number of entries allowed per internal list node can be specified as a fixed maximum size or a maximum number of elements. For a fixed maximum size, use -5 through -1, meaning:
-
+>
 > -5: max size: 64 Kb  <-- not recommended for normal workloads
-
+>
 > -4: max size: 32 Kb  <-- not recommended
-
+>
 > -3: max size: 16 Kb  <-- probably not recommended
-
+>
 > -2: max size: 8 Kb   <-- good
-
+>
 > -1: max size: 4 Kb   <-- good
-
+>
 > Positive numbers mean store up to _exactly_ that number of elements per list node.
-
+>
 > The highest performing option is usually -2 (8 Kb size) or -1 (4 Kb size),
-
+>
 > but if your use case is unique, adjust the settings as necessary.
 
 from `redis.conf`, it's a configurable parameter named `list-max-ziplist-size`, the default value is -2, it controls the value in `fill` field in the **quicklist** structure, negative value limits max size of **ziplist** in **quicklistNode** in bytes, while positive limits max elements of **ziplist** in **quicklistNode**
@@ -91,26 +91,26 @@ from `redis.conf`, it's a configurable parameter named `list-max-ziplist-size`, 
 > Lists may also be compressed. Compress depth is the number of quicklist ziplist nodes from *each* side of the list to *exclude* from compression.  The head and tail of the list are always uncompressed for fast push/pop operations.  Settings are:
 
 > 0: disable all list compression
-
+>
 > 1: depth 1 means "don't start compressing until after 1 node into the list,
-
+>
 >    going from either the head or tail"
-
+>
 >    So: [head]->node->node->...->node->[tail]
-
+>
 >    [head], [tail] will always be uncompressed; inner nodes will compress.
-
+>
 > 2: [head]->[next]->node->node->...->node->[prev]->[tail]
-
+>
 >    2 here means: don't compress head or head->next or tail->prev or tail,
-
+>
 >    but compress all nodes between them.
-
+>
 > 3: [head]->[next]->[next]->node->node->...->node->[prev]->[prev]->[tail]
-
+>
 > etc.
 
-from `redis.conf`, it's a configurable parameter named `list-compress-depth`, default value is 0(means no compression), redis use [LZF alfgorithm](https://github.com/ning/compress/wiki/LZFFormat) for compression, it's optimized for speed and low memory usage, we will see later
+from `redis.conf`, it's a configurable parameter named `list-compress-depth`, default value is 0(means no compression), redis use [LZF alfgorithm](https://github.com/ning/compress/wiki/LZFFormat) for compression, the compression rate is lower than `Deflate` and other algorithm, but it's optimized for speed, we will see later
 
 ### quicklistNode
 
@@ -258,11 +258,11 @@ Because the **quicklistNode** owns value **bb2** is full, it will be splited
 
 ![insert_middle2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/insert_middle2.png)
 
-The data structure looks like std::dequeue in C++ in a way
+The implementation of `list` in redis looks like stl dequeue in C++ in a way
 
 #### delete
 
-there's a function `int quicklistDelRange(quicklist *quicklist, const long start, const long count)` defined in `redis/src/quicklist.c`, it will iterate over every nodes until everything in the range is deleted
+there's a function `int quicklistDelRange(quicklist *quicklist, const long start, const long count)` defined in `redis/src/quicklist.c`, it will iterate over every nodes and delegate the deletion to **ziplist** until everything in the range is deleted
 
 # read more
 * [redis quicklist](https://matt.sh/redis-quicklist)
