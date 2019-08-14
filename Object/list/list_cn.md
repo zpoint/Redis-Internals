@@ -256,7 +256,7 @@
 
 ![insert_middle2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/insert_middle2.png)
 
-这里 `list` 的实现方式和 C++ 中 stl 的 dequeue 有点类似
+这里 `list` 的实现方式和 `C++` 中 `STL` 的 `dequeue` 有点类似
 
 #### 删除
 

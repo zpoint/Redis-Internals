@@ -258,7 +258,7 @@ Because the **quicklistNode** owns value **bb2** is full, it will be splited
 
 ![insert_middle2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/insert_middle2.png)
 
-The implementation of `list` in redis looks like stl dequeue in C++ in a way
+The implementation of `list` in redis looks like `STL dequeue` in `C++` in a way
 
 #### delete
 
