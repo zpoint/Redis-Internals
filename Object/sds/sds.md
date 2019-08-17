@@ -180,7 +180,7 @@ there're various different kinds of **string header type** depending on the leng
 
 ## sdshdr5
 
-**sdshdr5** is never used by the user, it packs the **length** and **string header type** is the same byte
+**sdshdr5** is never used by the user in the `string` type, it packs the **length** and **string header type** is the same byte
 
 ![sdshdr5](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sdshdr5.png)
 

@@ -1,9 +1,9 @@
 # set
 
-# contents
+# 目录
 
-* [prerequisites](#prerequisites)
-* [related file](#related-file)
+* [需要提前了解的知识](#需要提前了解的知识)
+* [相关位置文件](#相关位置文件)
 * [encoding](#encoding)
 	* [OBJ_ENCODING_INTSET](#OBJ_ENCODING_INTSET)
 		* [INTSET_ENC_INT16](#INTSET_ENC_INT16)
@@ -12,11 +12,11 @@
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
 * [sunionDiffGenericCommand](#sunionDiffGenericCommand)
 
-# prerequisites
+# 需要提前了解的知识
 
-* [hashtable in redis hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT)
+* [redis hash 结构中使用的 hashtable](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT)
 
-# related file
+# 相关位置文件
 * redis/src/intset.c
 * redis/src/intset.h
 * redis/src/t_set.c
@@ -26,27 +26,27 @@
 
 ## OBJ_ENCODING_INTSET
 
-This is the layout of **intset**
+这是 **intset** 的内存构造
 
 ![intset_layout](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/intset_layout.png)
 
 ### INTSET_ENC_INT16
 
-There're totally three different encodings for **intset**, it means how contents stored inside the **intset** are encoded
+对于 **intset** 来说总共有三种不同的 encoding, 它表示了 **intset** 中存储的实际内容是如何编码的
 
     127.0.0.1:6379> sadd set1 100
     (integer) 1
 
 ![sadd1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/sadd1.png)
 
-If the value is integer and fits into `int16_t`, the value will be represent as type `int16_t` and stored inside an array like object
+如果存储的值都是整型, 并且大小都不超过 `int16_t` 这个类型能表示的最大值, 那么这些值就会用 `int16_t` 这个类型来存储, 并且内部是一个数组结构
 
     127.0.0.1:6379> sadd set1 -3
     (integer) 1
 
 ![sadd2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/sadd2.png)
 
-We can find that the value inside the array is sorted in ascending order
+我们可以发现这个数组结构内的数值是以升序的顺序排好序的
 
     127.0.0.1:6379> sadd set1 5
     (integer) 1
@@ -56,66 +56,63 @@ We can find that the value inside the array is sorted in ascending order
     127.0.0.1:6379> sadd set1 1
     (integer) 1
 
-This is the insert function of **intset**
+这是 **intset** 的插入部分的函数
 
 
 	/* redis/src/intset.c */
-    /* Insert an integer in the intset */
+    /* 对于指定 intset 插入一个整型 */
     intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
         uint8_t valenc = _intsetValueEncoding(value);
         uint32_t pos;
         if (success) *success = 1;
-
-        /* Upgrade encoding if necessary. If we need to upgrade, we know that
-         * this value should be either appended (if > 0) or prepended (if < 0),
-         * because it lies outside the range of existing values. */
+        /* 在必要的时候升级 encoding, 如果我们需要进行升级, 我们知道这个值要么插在最后 (>0),
+         * 要么插在最前(<0), 因为已经有的类型无法表示这个值, 才需要进行升级 */
         if (valenc > intrev32ifbe(is->encoding)) {
-            /* This always succeeds, so we don't need to curry *success. */
+            /* 这一步一定会成功, 所以我们不用更改 *success. 的值 */
             return intsetUpgradeAndAdd(is,value);
         } else {
-            /* Abort if the value is already present in the set.
-             * This call will populate "pos" with the right position to insert
-             * the value when it cannot be found. */
+            /* 如果这个值已经在当前的集合中, 就不需要再进行处理了
+             * 在搜索不到这个值的时候, 这个函数会把 "pos" 设置为可以进行插入的位置 */
             if (intsetSearch(is,value,&pos)) {
-            	/* perform binary search */
+            	/* 进行二分查找 */
                 if (success) *success = 0;
                 return is;
             }
-            /* extend the mermory of intset */
+            /* 扩展 intset 的内存 */
             is = intsetResize(is,intrev32ifbe(is->length)+1);
-            /* move every bytes after pos to pos+1 */
+            /* 把所有 pos 开始的到结束字节移动到以 pos+1 开始的位置 */
             if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
         }
-		/* set the value in pos */
+		/* 把 pos 这个位置设置为指定的值 */
         _intsetSet(is,pos,value);
-        /* change the length */
+        /* 更改 length */
         is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
         return is;
     }
 
-First `intsetSearch` will do binary search in the sorted **intset**, if the value is founded, return the intset directly, else reallocate the **intset**
+首先, `intsetSearch`  会对排好序的数组进行二分查找, 如果这个值已经在里面了, 就直接返回, 不然的话重新申请 **intset** 的内存空间
 
 ![resize](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/resize.png)
 
-The `intsetMoveTail` will move every bytes after `pos` to `pos+1`
+`intsetMoveTail` 这个函数会把所有 `pos` 开始的到结束字节移动到以 `pos+1` 开始的位置
 
 ![move](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/move.png)
 
 ![after_move](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/after_move.png)
 
-Finally inset the value into the right position and set the `length` to `length+1`
+最后把这个值插入到对应的位置并把 `length` 的值设置为 `length+1`
 
 ![insert](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/insert.png)
 
 ### INTSET_ENC_INT32
 
-This is how `encoding` in **intset** defined
+这是 **intset** 中不同的 `encoding` 的定义
 
     #define INTSET_ENC_INT16 (sizeof(int16_t))
     #define INTSET_ENC_INT32 (sizeof(int32_t))
     #define INTSET_ENC_INT64 (sizeof(int64_t))
 
-First initialize a `set`
+首先我们初始化一个 `set`
 
     127.0.0.1:6379> del set1
     (integer) 1
@@ -124,7 +121,7 @@ First initialize a `set`
 
 ![before_upgrade](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/before_upgrade.png)
 
-If you insert a value that can not fit into `int16_t`, the whole array will be upgraded to `int32_t`
+如果你插入了一人无法用 `int16_t` 这个类型表示的值, 那么整个数组都会被升级为 `int32_t`
 
     127.0.0.1:6379> sadd set1 32768
     (integer) 1
@@ -134,7 +131,7 @@ If you insert a value that can not fit into `int16_t`, the whole array will be u
     127.0.0.1:6379> srem set1 32768
     (integer) 1
 
-There's only upgrade strategy in **intset**, no downgrade strategy
+对于 **intset** 只存在升级, 不存在降级
 
 ![after_upgrade_remove](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/after_upgrade_remove.png)
 
@@ -147,9 +144,9 @@ There's only upgrade strategy in **intset**, no downgrade strategy
 
 ## OBJ_ENCODING_HT
 
-The encoding `OBJ_ENCODING_HT` is introduced in [hash object](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT), you can refer to that article to have a better overview
+`OBJ_ENCODING_HT` 这个类型表示在 [hash 对象](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT) 中进行过介绍了, 你可以前面的链接获得一个更直观的介绍
 
-This is part of the set add function
+这是 `set` 对象的 sadd 部分的函数
 
 	/* redis/src/t_set.c */
     else if (subject->encoding == OBJ_ENCODING_INTSET) {
@@ -157,30 +154,29 @@ This is part of the set add function
             uint8_t success = 0;
             subject->ptr = intsetAdd(subject->ptr,llval,&success);
             if (success) {
-                /* Convert to regular set when the intset contains
-                 * too many entries. */
+                /* 如果当前的 intset 含有太多的元素, 把它转换为一个通用的 set(哈希表存储) */
                 if (intsetLen(subject->ptr) > server.set_max_intset_entries)
                     setTypeConvert(subject,OBJ_ENCODING_HT);
                 return 1;
             }
         } else {
-            /* Failed to get integer from object, convert to regular set. */
+            /* 这个值无法用整型表示, 把它转换为一个通用的 set(哈希表存储) */
             setTypeConvert(subject,OBJ_ENCODING_HT);
 
-            /* The set *was* an intset and this value is not integer
-             * encodable, so dictAdd should always work. */
+            /* 这个 set 之前是一个 intset, 但是当前插入的值无法用整型表示
+             * 所以用 dictAdd 来处理这个值 */
             serverAssert(dictAdd(subject->ptr,sdsdup(value),NULL) == DICT_OK);
             return 1;
         }
     }
 
-We can learn from the above code that if the set's encoding is `OBJ_ENCODING_INTSET`, and the newly inserted value can fit into type `long long`, it will be inserted into the **intset**, if the value can't fit into type `long long` or the length of the **intset** is longer than `set_max_intset_entries`(configurable in config file, default value is 512), it will be coverted to [hash table](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT)
+我们从上面的代码可以看出, 如果这个集合的 encoding 是 `OBJ_ENCODING_INTSET`, 并且新插入的值可以用 `long long` 这个类型来表示, 那么它会被前面介绍过的方式插入这个 **intset**, 如果这个值无法用 `long long` 表示(或者它根本不是一个整型), 或者当前的  **intset** 的长度已经超过了 `set_max_intset_entries`(你可以在配置文件里位置这个值, 默认值是 512), 当前的 **intset** 会被转换成一个 [hash 表](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT)
 
-I've set this line in my configure file for illustration
+为了更方便的进行解释说明, 我在我的配置文件里更改了如下这行
 
 	set-max-intset-entries 3
 
-And initlalize a `set`
+并且初始化了一个 `set`
 
     127.0.0.1:6379> del set1
     (integer) 1
@@ -192,7 +188,7 @@ And initlalize a `set`
     127.0.0.1:6379> sadd set1 3
     (integer) 1
 
-Because the length of the **intset** is longer than `set-max-intset-entries`, it will be coverted to [hash table](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT)
+因为 **intset** 的长度超过了 `set-max-intset-entries`, 它 会被转换成一张 [hash 表](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT)
 
 ![hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/hash.png)
 
@@ -203,6 +199,7 @@ Because the length of the **intset** is longer than `set-max-intset-entries`, it
 
 ![before_converted](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/before_converted.png)
 
+或者你插入了一个无法用整型表示的值
 Or if you insert a value that can't be represent as an integer
 
     127.0.0.1:6379> sadd set1 abc
