@@ -10,7 +10,10 @@
 		* [INTSET_ENC_INT32](#INTSET_ENC_INT32)
 		* [INTSET_ENC_INT64](#INTSET_ENC_INT64)
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
-* [sunionDiffGenericCommand](#sunionDiffGenericCommand)
+* [sdiff](#sdiff)
+	* [Algorithm 1](#Algorithm-1)
+	* [Algorithm 2](#Algorithm-2)
+
 
 # 需要提前了解的知识
 
@@ -74,7 +77,7 @@
             /* 如果这个值已经在当前的集合中, 就不需要再进行处理了
              * 在搜索不到这个值的时候, 这个函数会把 "pos" 设置为可以进行插入的位置 */
             if (intsetSearch(is,value,&pos)) {
-            	/* 进行二分查找 */
+                /* 进行二分查找 */
                 if (success) *success = 0;
                 return is;
             }
@@ -83,7 +86,7 @@
             /* 把所有 pos 开始的到结束字节移动到以 pos+1 开始的位置 */
             if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
         }
-		/* 把 pos 这个位置设置为指定的值 */
+        /* 把 pos 这个位置设置为指定的值 */
         _intsetSet(is,pos,value);
         /* 更改 length */
         is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
@@ -200,12 +203,61 @@
 ![before_converted](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/before_converted.png)
 
 或者你插入了一个无法用整型表示的值
-Or if you insert a value that can't be represent as an integer
 
     127.0.0.1:6379> sadd set1 abc
     (integer) 1
 
 ![after_converted](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/after_converted.png)
 
-# sunionDiffGenericCommand
+# sdiff
+
+对于 `sdiff` 命令, 实现了两种不同的算法, 函数名称为 `sunionDiffGenericCommand`, 文件位置在 `redis/src/t_set.c`
+
+> 判定使用哪一个 DIFF 函数
+>
+> 算法 1 复杂度为 O(N*M), N 表示第一个 set 的元素数量, M 是一共有多少个集合
+>
+> 算法 2 复杂度为 O(N), N 表示所有集合里加起来一共有多少个元素
+>
+> 我们对于当前输入的集合, 先计算一遍哪一个算法更优
+
+    if (op == SET_OP_DIFF && sets[0]) {
+        long long algo_one_work = 0, algo_two_work = 0;
+
+        for (j = 0; j < setnum; j++) {
+            if (sets[j] == NULL) continue;
+
+            algo_one_work += setTypeSize(sets[0]);
+            algo_two_work += setTypeSize(sets[j]);
+        }
+        /* 通常情况下算法 1 有更优的常数时间复杂度, 并且做更少的比较,
+         * 所以同样情况下给算法 1 更高的优先级 */
+        algo_one_work /= 2;
+        diff_algo = (algo_one_work <= algo_two_work) ? 1 : 2;
+
+## 算法 1
+
+> DIFF 算法 1:
+>
+> 我们通过如下方式来达到 sdiff 的目的, 遍历所有第一个集合里的元素, 并且只有在这个元素不在其他所有剩余集合里面时, 才把这个元素插入结果的集合的
+>
+> 通过这种方式, 我们的时间复杂度最差的情况下为 N\*M, N 为第一个集合的元素数量, M 是一共有多少个集合
+
+* 把 set1 到 setN 以降序的方式进行排序
+* 对于 set0 中的每个元素
+* 检查这个元素是否包含在 set1 到 setN 中, 如果都不在的话, 把这个元素插入到结果的集合的
+
+## 算法 2
+
+> DIFF 算法 2:
+>
+> 把第一个集合中的所有的元素都添加到结果的集合中, 对于剩下的集合中的每一个元素, 都从这个集合移除掉这个元素
+>
+> 这是一个 O(N) 复杂度的算法, N 表示所有不同的集合的元素的个数的总和
+
+* 对于 set0 的每一个元素
+* 把这个元素插入到结果的集合的
+* 对于 set1 到 setN 的每一个集合
+* 对于这个集合中的每一个元素
+* 从结果的集合中移除这个元素
 

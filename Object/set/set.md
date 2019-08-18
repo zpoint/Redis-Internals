@@ -10,7 +10,9 @@
 		* [INTSET_ENC_INT32](#INTSET_ENC_INT32)
 		* [INTSET_ENC_INT64](#INTSET_ENC_INT64)
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
-* [sunionDiffGenericCommand](#sunionDiffGenericCommand)
+* [sdiff](#sdiff)
+	* [Algorithm 1](#Algorithm-1)
+	* [Algorithm 2](#Algorithm-2)
 
 # prerequisites
 
@@ -77,7 +79,7 @@ This is the insert function of **intset**
              * This call will populate "pos" with the right position to insert
              * the value when it cannot be found. */
             if (intsetSearch(is,value,&pos)) {
-            	/* perform binary search */
+                /* perform binary search */
                 if (success) *success = 0;
                 return is;
             }
@@ -86,7 +88,7 @@ This is the insert function of **intset**
             /* move every bytes after pos to pos+1 */
             if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
         }
-		/* set the value in pos */
+        /* set the value in pos */
         _intsetSet(is,pos,value);
         /* change the length */
         is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
@@ -210,5 +212,56 @@ Or if you insert a value that can't be represent as an integer
 
 ![after_converted](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/after_converted.png)
 
-# sunionDiffGenericCommand
+# sdiff
+
+There are two algorithms for `sdiff` comand, The function name is `sunionDiffGenericCommand` and defined in `redis/src/t_set.c`
+
+> Select what DIFF algorithm to use.
+>
+> Algorithm 1 is O(N*M) where N is the size of the element first set and M the total number of sets.
+>
+> Algorithm 2 is O(N) where N is the total number of elements in all the sets.
+>
+> We compute what is the best bet with the current input here.
+
+    if (op == SET_OP_DIFF && sets[0]) {
+        long long algo_one_work = 0, algo_two_work = 0;
+
+        for (j = 0; j < setnum; j++) {
+            if (sets[j] == NULL) continue;
+
+            algo_one_work += setTypeSize(sets[0]);
+            algo_two_work += setTypeSize(sets[j]);
+        }
+
+        /* Algorithm 1 has better constant times and performs less operations
+         * if there are elements in common. Give it some advantage. */
+        algo_one_work /= 2;
+        diff_algo = (algo_one_work <= algo_two_work) ? 1 : 2;
+
+## Algorithm 1
+
+> DIFF Algorithm 1:
+>
+> We perform the diff by iterating all the elements of the first set, and only adding it to the target set if the element does not exist into all the other sets.
+>
+> This way we perform at max N*M operations, where N is the size of the first set, and M the number of sets.
+
+* sort set1 to setN in descending order
+* for every elemnet in set0
+* check if the element is in set1 to setN, if not, insert it to output set
+
+## Algorithm 2
+
+> DIFF Algorithm 2:
+>
+> Add all the elements of the first set to the auxiliary set. Then remove all the elements of all the next sets from it.
+>
+> This is O(N) where N is the sum of all the elements in every set.
+
+* for every element in set0
+* add it to output set
+* for every set in set1 to setN
+* for every element in this set
+* remove the element from the output set
 
