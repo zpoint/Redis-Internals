@@ -11,8 +11,8 @@
 		* [INTSET_ENC_INT64](#INTSET_ENC_INT64)
 	* [OBJ_ENCODING_HT](#OBJ_ENCODING_HT)
 * [sdiff](#sdiff)
-	* [Algorithm 1](#Algorithm-1)
-	* [Algorithm 2](#Algorithm-2)
+	* [算法 1](#算法-1)
+	* [算法 2](#算法-2)
 
 
 # 需要提前了解的知识
