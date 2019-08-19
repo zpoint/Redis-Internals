@@ -5,8 +5,8 @@
 * [prerequisites](#prerequisites)
 * [related file](#related-file)
 * [encoding](#encoding)
-	* [OBJ_ENCODING_SKIPLIST](#OBJ_ENCODING_SKIPLIST)
 	* [OBJ_ENCODING_ZIPLIST](#OBJ_ENCODING_ZIPLIST)
+	* [OBJ_ENCODING_SKIPLIST](#OBJ_ENCODING_SKIPLIST)
 
 # prerequisites
 
@@ -19,10 +19,11 @@
 
 # encoding
 
-## OBJ_ENCODING_SKIPLIST
+## OBJ_ENCODING_ZIPLIST
 
 This is the layout of **skiplist**
 
 ![skiplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/skiplist.png)
 
-## OBJ_ENCODING_ZIPLIST
+## OBJ_ENCODING_SKIPLIST
+
