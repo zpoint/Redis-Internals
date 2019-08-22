@@ -26,7 +26,7 @@
 
 This is the layout of **zset**
 
-![zskiplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zskiplist.png)
+![skiplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/skiplist.png)
 
 This is the layout of **skiplist**
 
@@ -63,6 +63,23 @@ Value in `ZSKIPLIST_MAXLEVEL` is 64, it means there can't be more than 64 levels
 I've set `ZSKIPLIST_P` to a lower value `0.7` so that it's more likely to generate higher level(only for illustration purpose)
 
 ![skiplist1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/skiplist1.png)
+
+We can learn from the above picture that all the inserted values are sorted in ascending order by `score` field, and the type of `score` is `double`([IEEE 754](https://en.wikipedia.org/wiki/IEEE_754-1985)/[IEEE-754标准与浮点数运算](https://blog.csdn.net/m0_37972557/article/details/84594879)), you can't set a value that overflow type `double`
+
+The [`skiplist`](https://en.wikipedia.org/wiki/Skip_list) data structure allows you to search from the top level to bottom level, which results an log(N) search complexity
+
+So that in some command(i.e `ZREMRANGEBYSCORE`) you are able to find values by score in log(N) instead of linear time
+
+There also exists a [hashtable](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT) in **zset**
+
+![ziplist_dict](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/ziplist_dict.png)
+
+So that in some command(i.e `ZSCORE`) you are able to find value and score by key in log(1) in the **hash table** instead of log(N) in **skiplist**
+
+
+
+
+
 
 
 
