@@ -21,7 +21,7 @@
  - [x] [哈希/hash(ziplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md)
  - [x] [列表/list(quicklist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list_cn.md)
  - [x] [集合(intset/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/set_cn.md)
- - [ ] [zset](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_cn.md)
+ - [x] [有序集合(ziplist/skiplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_cn.md)
  - [ ] HyperLogLog
  - [ ] stream
 

@@ -21,8 +21,13 @@
 
 ## OBJ_ENCODING_ZIPLIST
 
-    127.0.0.1:6379> zadd zset1 -1 val1 -3 val2 5 val3
+    127.0.0.1:6379> zadd zset1 5 val3 -1 val1 -3 val2
     (integer) 3
+
+![zset_ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_ziplist.png)
+
+A [ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_ZIPLIST) is used for storing light weight **zset**, the **score** is next to **entry**, and they are stored in accending order sorted by **score**
+
 
 The default parameters in configure file is
 
@@ -83,12 +88,11 @@ So that in some command(i.e `ZREMRANGEBYSCORE`) you are able to find values by s
 
 There also exists a [hashtable](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT) in **zset**
 
-![ziplist_dict](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/ziplist_dict.png)
+![zset_dict](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_dict.png)
+
+The entry in hash table stores the address of **score** field, which is a pointer to a double
 
 So that in some command(i.e `ZSCORE`) you are able to find value and score by key in O(1) in the **hash table** instead of log(N) in **skiplist**
-
-
-
 
 
 
