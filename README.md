@@ -12,6 +12,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 # Table of Contents
 
 * [Objects](#Objects)
+* [Server](#Server)
 * [Why this repo](#Why-this-repo)
 * [Learning material](#Learning-material)
 
@@ -21,6 +22,16 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
  - [x] [list(quicklist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list.md)
  - [x] [set(intset/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/set.md)
  - [ ] [zset](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset.md)
+ - [ ] HyperLogLog
+ - [ ] stream
+
+# Server
+- persistence
+- pubsub
+- protocol
+- transaction
+- cluster
+- redlock
 
 # Why this repo
 

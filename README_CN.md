@@ -12,6 +12,7 @@
 # 目录
 
 * [基本对象](#基本对象)
+* [服务](#服务)
 * [为什么创建这个仓库](#为什么创建这个仓库)
 * [学习资料](#学习资料)
 
@@ -21,6 +22,16 @@
  - [x] [列表/list(quicklist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list_cn.md)
  - [x] [集合(intset/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/set_cn.md)
  - [ ] [zset](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_cn.md)
+ - [ ] HyperLogLog
+ - [ ] stream
+
+# 服务
+- persistence
+- pubsub
+- protocol
+- transaction
+- cluster
+- redlock
 
 # 为什么创建这个仓库
 
