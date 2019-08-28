@@ -1,6 +1,7 @@
 # Redis Internals
 
 * [English](https://github.com/zpoint/Redis-Internals/blob/5.0/README.md)
+* 如果你需要接收更新通知, 点击右上角的 **Watch**, 当有文章更新时会在 issue 发布相关标题和链接
 
 这个仓库是我分析 [redis](https://github.com/antirez/redis) 源码时做的记录
 
@@ -22,7 +23,7 @@
  - [x] [列表/list(quicklist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list_cn.md)
  - [x] [集合(intset/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/set_cn.md)
  - [x] [有序集合(ziplist/skiplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_cn.md)
- - [ ] hyperloglog
+ - [ ] [hyperloglog](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/hyperloglog_cn.md)
  - [ ] stream
 
 # 服务

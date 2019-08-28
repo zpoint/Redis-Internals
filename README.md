@@ -1,6 +1,7 @@
 # Redis Internals
 
 * [简体中文](https://github.com/zpoint/Redis-Internals/blob/5.0/README_CN.md)
+*  **Watch** this repo if you need to be notified when there's update
 
 This repository is my notes for [redis](https://github.com/antirez/redis) source code
 
@@ -22,7 +23,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
  - [x] [list(quicklist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list.md)
  - [x] [set(intset/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/set.md)
  - [x] [zset(ziplist/skiplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset.md)
- - [ ] hyperloglog
+ - [ ] [hyperloglog](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/hyperloglog.md)
  - [ ] stream
 
 # Server
