@@ -105,7 +105,7 @@ An empty `ziplist` will be created for the first time you call `hset` command wi
     127.0.0.1:6379> HGET AA key2
     "123"
 
-The `hget` command will traverse the `ziplist`, extract the key according to the `encoding`, and check the key to see if it's a match, it a O(n) linear serach
+The `hget` command will traverse the `ziplist`, extract the key according to the `encoding`, and check the key to see if it's a match, it's an O(n) linear serach
 
 #### update
 

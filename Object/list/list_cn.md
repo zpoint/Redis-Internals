@@ -85,7 +85,7 @@
 >
 > 但是如果你的使用场景非常独特的话, 调整到适合你的场景的值
 
-翻译自 `redis.conf`, 其中有一个可配置的参数叫做 `list-max-ziplist-size`, 默认值为 -2, 它控制了 **quicklist** 中的 `fill` 字段的值, 负数限制 **quicklistNode** 中的 **ziplist** 的字节长度, 正数限制 **quicklistNode** 中的 **ziplist** 的最大长度
+翻译自 `redis.conf`, 其中有一个可配置的参数叫做 `list-max-ziplist-size`, 默认值为 -2, 它控制了 **quicklist** 中的 `fill` 字段的值, 负数限制 **quicklistNode** 中的 **ziplist** 的字节大小, 正数限制 **quicklistNode** 中的 **ziplist** 的最大长度
 
 `compress` 则表示 **quicklist** 中的节点 **quicklistNode**, 除开最两端的 `compress` 个节点之后, 中间的节点都会被压缩
 
@@ -260,7 +260,7 @@
 
 #### 删除
 
-在 `redis/src/quicklist.c` 中定义了如下函数原型 `int quicklistDelRange(quicklist *quicklist, const long start, const long count)`, 这个函数会遍历所有的节点, 知道你指定的范围都删除为止
+在 `redis/src/quicklist.c` 中定义了如下函数原型 `int quicklistDelRange(quicklist *quicklist, const long start, const long count)`, 这个函数会遍历所有的节点, 直到你指定的范围都删除为止
 
 # 更多资料
 * [redis quicklist](https://matt.sh/redis-quicklist)

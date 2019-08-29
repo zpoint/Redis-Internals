@@ -8,6 +8,7 @@
 * [sparse](#dense)
 * [dense](#dense)
 * [raw](#raw)
+* [PFADD](#PFADD)
 * [read more](#read-more)
 
 # prerequisites
@@ -109,9 +110,34 @@ There also exists an unconfigurable threshold defined as `#define HLL_SPARSE_VAL
 
 The **dense** representation will use `6 bits` for each register, `16384 registers` will cost `12(kbytes)`
 
+I've set the following line in my configure file for illustration purpose `hll-sparse-max-bytes 0`
 
+    127.0.0.1:6379> PFADD key1 here
+    (integer) 1
+    127.0.0.1:6379> PFCOUNT key1
+    (integer) 3
+
+Now the layout of the **hyperloglog** data structure becomes
+
+![dense](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/dense.png)
+
+The 16384 registers is fully allocated, each register occupies `6 bits`
 
 # raw
+
+# PFADD
+
+The **PFADD** command will use [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) to generate a 64 bit value for the [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) parameter, take the right most 14 bits to `index` the register among all 16384 registers, and the left 50 bits, count from right to left, take first 1's position as value `count`, and stores the value `count` to the `registers[index]`
+
+For example, when you call `PFADD key1 hello`
+
+![pfadd](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd.png)
+
+
+
+
+# PFCOUNT
+
 
 # read more
 * [redis源码分析2--hyperloglog 基数统计](https://www.cnblogs.com/lh-ty/p/9972901.html)

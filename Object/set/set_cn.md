@@ -147,7 +147,7 @@
 
 ## OBJ_ENCODING_HT
 
-`OBJ_ENCODING_HT` 这个类型表示在 [hash 对象](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT) 中进行过介绍了, 你可以前面的链接获得一个更直观的介绍
+`OBJ_ENCODING_HT` 这个类型表示在 [hash 对象](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT) 中进行过介绍了, 你可以点前面的链接获得一个更直观的介绍
 
 这是 `set` 对象的 sadd 部分的函数
 

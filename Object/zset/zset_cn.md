@@ -46,7 +46,7 @@
 
 ![skiplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/skiplist.png)
 
-从上图我们可以发现, **zset** 会同时存储一张 [hash 表](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT) 和一个 **skiplist**(跳跃表) 结构用充当不同命令下的索引
+从上图我们可以发现, **zset** 会同时存储一张 [hash 表](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT) 和一个 **skiplist**(跳跃表), 这样可以在不同命令下从不同的结构进行索引
 
 我在我的配置文件下更改了这个值 `zset-max-ziplist-entries 0` 方便演示, 如果你需要了解这个参数的作用, 请参考 [hash 结构的升级](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#%E5%8D%87%E7%BA%A7)
 
