@@ -5,7 +5,7 @@
 * [prerequisites](#prerequisites)
 * [related file](#related-file)
 * [memory layout](#memory-layout)
-* [sparse](#dense)
+* [sparse](#sparse)
 * [dense](#dense)
 * [raw](#raw)
 * [PFADD](#PFADD)
@@ -129,15 +129,71 @@ The 16384 registers is fully allocated, each register occupies `6 bits`
 
 The **PFADD** command will use [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) to generate a 64 bit value for the [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) parameter, take the right most 14 bits to `index` the register among all 16384 registers, and the left 50 bits, count from right to left, take first 1's position as value `count`, and stores the value `count` to the `registers[index]`
 
-For example, when you call `PFADD key1 hello`
+For example, when you call
+
+	PFADD key1 hello
+
+This is the actual layout of `murmur(hello)` in my little endian machine
 
 ![pfadd](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd.png)
 
+Let's represent it as human readable order for better understanding
 
+The right most 14 bits will be represented as an unsigned integer, and that integer is the index of the `registers`
 
+Value in `count` will be the first position with binary `1` set from 14th to 63th, for example, the first 1 is in 14th, `count` will be 1, of the first 1 is 18th, `count` will be 5
+
+![pfadd2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd2.png)
+
+The whole `registers` array should looks like the below diagram, though the actual layout may in [dense](#dense) or [sparse](#sparse) way
+
+![pfadd_full_registers](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd_full_registers.png)
+
+If you call
+
+	PFADD key1 world
+
+The result of `murmur(world)` is in the following diagram, the right most 14 bits's value is 2742, and from the 14th to the left most bit, the first `1` occurs in the 16th position, so the `count` will be 3
+
+![pfadd3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd3.png)
+
+The is the `registers` array after the `PFADD`
+
+![pfadd_full_registers2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd_full_registers2.png)
 
 # PFCOUNT
 
+    uint64_t hllCount(struct hllhdr *hdr, int *invalid) {
+        double m = HLL_REGISTERS;
+        double E;
+        int j;
+        int reghisto[64] = {0};
+
+        /* Compute register histogram */
+        if (hdr->encoding == HLL_DENSE) {
+            hllDenseRegHisto(hdr->registers,reghisto);
+        } else if (hdr->encoding == HLL_SPARSE) {
+            hllSparseRegHisto(hdr->registers,
+                             sdslen((sds)hdr)-HLL_HDR_SIZE,invalid,reghisto);
+        } else if (hdr->encoding == HLL_RAW) {
+            hllRawRegHisto(hdr->registers,reghisto);
+        } else {
+            serverPanic("Unknown HyperLogLog encoding in hllCount()");
+        }
+
+        /* Estimate cardinality form register histogram. See:
+         * "New cardinality estimation algorithms for HyperLogLog sketches"
+         * Otmar Ertl, arXiv:1702.01284 */
+        double z = m * hllTau((m-reghisto[HLL_Q+1])/(double)m);
+        for (j = HLL_Q; j >= 1; --j) {
+            z += reghisto[j];
+            z *= 0.5;
+        }
+        z += m * hllSigma(reghisto[0]/(double)m);
+        E = llroundl(HLL_ALPHA_INF*m*m/z);
+
+        return (uint64_t) E;
+    }
 
 # read more
 * [redis源码分析2--hyperloglog 基数统计](https://www.cnblogs.com/lh-ty/p/9972901.html)
