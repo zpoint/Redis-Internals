@@ -1,30 +1,30 @@
 # hyperloglog
 
-# contents
+# 目录
 
-* [prerequisites](#prerequisites)
-* [related file](#related-file)
-* [memory layout](#memory-layout)
+* [需要提前了解的知识](#需要提前了解的知识)
+* [相关位置文件](#相关位置文件)
+* [内存构造](#内存构造)
 * [sparse](#sparse)
 * [dense](#dense)
 * [raw](#raw)
 * [PFADD](#PFADD)
 * [read more](#read-more)
 
-# prerequisites
+# 需要提前了解的知识
 
-* [sds in redis string](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
+* [redis 字符串对象中的 sds 实现](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md)
 
-# related file
+# 相关位置文件
 * redis/src/hyperloglog.c
 
-# memory layout
+# 内存构造
 
-This is the memory layout of a **hyperloglog** data structure
+这是 **hyperloglog** 这个结构的内存构造
 
 ![hyperloglog](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/hyperloglog.png)
 
-There're totally three kinds of different encodings for the **hyperloglog** data structure
+对于 **hyperloglog** 这个结构, 总共有 3 种不同的编码(存储)方式
 
     127.0.0.1:6379> PFADD key1 hello
     (integer) 1
@@ -33,47 +33,47 @@ There're totally three kinds of different encodings for the **hyperloglog** data
 
 ![sparse](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse.png)
 
-We can learn that **redis** use [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) for storing the **hyperloglog** data structure, `buf` field in the **sds** can be cast to `hllhdr` pointer directly, the `magic` is a string, it will always be `HYLL`, the one byte `encoding` indicating that whether this **hyperloglog** is a **dense** representation or **sparse** representation
+我们可以发现, **redis** 使用了 [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md) 结构来存储 **hyperloglog**, **sds** 中的 `buf` 字段可以直接转换成  `hllhdr` 指针, `magic` 字段是一个字符串常量, 里面的值是 `HYLL`, 占用一字节大小的 `encoding` 表示了这个 **hyperloglog** 是以 **dense**(稠密) 的方式存储的还是以稀疏的方式存储的
 
     /* redis/src/hyperloglog.c */
-    #define HLL_DENSE 0 /* Dense encoding. */
-    #define HLL_SPARSE 1 /* Sparse encoding. */
-    #define HLL_RAW 255 /* Only used internally, never exposed. */
+    #define HLL_DENSE 0 /* 稠密. */
+    #define HLL_SPARSE 1 /* 稀疏. */
+    #define HLL_RAW 255 /* 只在内部处理的时候用到, 用户在外部无法操作 */
 
-The current `encoding` is `HLL_SPARSE`
+当前的 `encoding` 是 `HLL_SPARSE`
 
-`card` is used for caching the `PFCOUNT` result to avoid recomputing the value every time, we will see an example later
+`card` 的作用是缓存 `PFCOUNT` 的结果, 避免每次调用都进行重复计算, 我们后面会看到示例
 
-`registers` stores the real data
+`registers` 存储了实际的数据
 
 # sparse
 
-The first time I learn the concept **sparse** is [csr_matrix in scipy](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html) in a NLP project about 2 years ago, I can't figure out the meaning of **rows** and **cols** in **csr_matrix** by myself at that moment, with the help of a NLP expert college, I finallty figure out the meaning of the document
+我第一次碰到 **sparse** 这个概念的时候是大概2年前在处理一个 [scipy 中的稀疏矩阵(csr_matrix)](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html) 的时候, 在一个非常专业的同时的帮助下才弄清了文档中稀疏矩阵中的 **rows** 和 **cols** 对应的意义
 
-By default **redis** represents **hyperloglog** in a **sparse** format when the number of entries stores inside the **hyperloglog** is less than a specific value
+默认情况下当 **hyperloglog** 中存储的元素个数小于一定的值的时候, **redis** 会以稀疏的方式来存储 **hyperloglog** 这个结构
 
-`card` will cache the `PFCOUNT` result whenever you call `PFCOUNT`, it's stored in little-endian, with the most significant bit indicates whether the current cache value is valid or not
+当你调用 `PFCOUNT` 并且进行真正的计算之后, `card` 字段会缓存 `PFCOUNT` 的结果, `card` 是以小端的方式存储, 权重最高的的一个 `bit` 用来表示当前 `card` 中缓存的计算结果是否已失效
 
 ![sparse_example](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse_example.png)
 
-Those bytes in `registers` fields will be represented as
+当前在 `registers` 中的字节可以翻译成
 
 	XZERO:9216
     VAL:1,1
     XZERO:7167
 
-which can be translated to
+同样可以翻译成
 
-	/* There're totally 16384 registers, index from 0 to 16383 */
-	Registers 0-9215 are set to 0 (XZERO:9216)
-    1 register set to value 1, that is register 9216 (VAL:1,1)
-    XZERO:7167 (Registers 9217-16383 set to 0) /* 9216 + 7167 = 16383 */
+	/* 总共有 16384 个 registers, 下标从 0 到 16383 */
+    Registers 0-9215 的值为 0 (XZERO:9216)
+    有一个 register 的值为 1, 这个 register 的下标为 9216 (VAL:1,1)
+    XZERO:7167 (下标为 9217-16383 的 registers 都设置为 0) /* 9216 + 7167 = 16383 */
 
-This is the layout of the registers after translation, if there're totally 16384 registers and each takes 6 bits to stores an integer value, it will takes `16384 * 6(bits) = 12(kbytes)` (12kb to store just 1 single integer value 1)
+这是翻译并展开后的 registers 的样子, 如果一共有 16384 个 registers 并且每一个占用 `6 bits` 的大小来存储这个 register 对应的值, 那么一共需要 `16384 * 6(bits) = 12(kbytes)`(12kb 的大小来存储仅仅1个值为1的整型)
 
 ![sparse_full_registers](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse_full_registers.png)
 
-But it turns out that only 5 bytes are used in the **sparse** representation
+但是通过观察我们发现在 **sparse**(稀疏) 表示方式下, 实际上只用了 5 个字节就把对应的数据完整的存储了下来
 
 ![sparse_low_registers](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse_low_registers.png)
 
@@ -82,7 +82,7 @@ But it turns out that only 5 bytes are used in the **sparse** representation
     127.0.0.1:6379> PFCOUNT key1
     (integer) 2
 
-Now bytes in `registers` fields will be represented as
+现在 `registers` 中的字节可以翻译成
 
 	XZERO:2742
     VAL:3,1
@@ -90,27 +90,25 @@ Now bytes in `registers` fields will be represented as
     VAL:1,1
     XZERO:7167
 
-which can be translated to
+同样可以翻译成
 
-	Registers 0-2741 are set to 0 (XZERO:2742)
-    1 register set to value 3, that is register 2742 (VAL:3,1)
-    XZERO:6473 (Registers 2743-9215 set to 0) /* 2742 + 6473 = 9215 */
-    1 register set to value 1, that is register 9216 (VAL:1,1)
-    XZERO:7167 (Registers 9217-16383 set to 0) /* 9216 + 7167 = 16383 */
+    Registers 0-2741 的值为 0 (XZERO:2742)
+	有一个 register 的值为 3, 这个 register 的下标为 2742 (VAL:3,1)
+    XZERO:6473 (下标为 2743-9215 的 registers 都设置为 0) /* 2742 + 6473 = 9215 */
+    有一个 register 的值为 1, 这个 register 的下标为 9216 (VAL:1,1)
+    XZERO:7167 (下标为 9217-16383 的 registers 都设置为 0) /* 9216 + 7167 = 16383 */
 
-It only takes 8 bytes to represent the 16384 registers in **sparse** way
+通过稀疏的方式, 总共只用了 8 个字节就存储下了一整个长度为 16384 的数组
 
 ![sparse_low_registers2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse_low_registers2.png)
 
 # dense
 
-There's a configurable threshold named `hll-sparse-max-bytes 3000` in the `redis.conf` configure file, if the [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) occupies more than `hll-sparse-max-bytes`, the **sparse** structure will bo promoted to **dense** structure
+在 `redis.conf` 中有一个可配置的参数 `hll-sparse-max-bytes 3000`, 如果当前的 [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md) 占用了超过 `hll-sparse-max-bytes` 大小的字节数, 那么 **sparse**(稀疏) 的表示方式就会被转换为 **dense**(稠密) 的方式
 
-There also exists an unconfigurable threshold defined as `#define HLL_SPARSE_VAL_MAX_VALUE 32`, it means if the `count` value in the current register is greater than 32, it will also be promoted
+同样的存在一个无法配置的阈值 `#define HLL_SPARSE_VAL_MAX_VALUE 32`, 它表示如果当前计算出的 `count` 的值超过 32 时, 这个稀疏的结构也会被转换为稠密的结构
 
-The **dense** representation will use `6 bits` for each register, `16384 registers` will cost `12(kbytes)`
-
-I've set the following line in my configure file for illustration purpose `hll-sparse-max-bytes 0`
+我在我的配置文件里设置了如下的配置 `hll-sparse-max-bytes 0`(仅仅是处于演示目的)
 
     127.0.0.1:6379> PFADD key1 here
     (integer) 1
