@@ -9,7 +9,7 @@
 * [dense](#dense)
 * [raw](#raw)
 * [PFADD](#PFADD)
-* [read more](#read-more)
+* [更多资料](#更多资料)
 
 # 需要提前了解的知识
 
@@ -108,70 +108,68 @@
 
 同样的存在一个无法配置的阈值 `#define HLL_SPARSE_VAL_MAX_VALUE 32`, 它表示如果当前计算出的 `count` 的值超过 32 时, 这个稀疏的结构也会被转换为稠密的结构
 
-我在我的配置文件里设置了如下的配置 `hll-sparse-max-bytes 0`(仅仅是处于演示目的)
+我在我的配置文件里设置了如下的配置 `hll-sparse-max-bytes 0`(仅仅是出于演示目的)
 
     127.0.0.1:6379> PFADD key1 here
     (integer) 1
     127.0.0.1:6379> PFCOUNT key1
     (integer) 3
 
-Now the layout of the **hyperloglog** data structure becomes
+现在 **hyperloglog** 的实际构造变成了如下的样子
 
 ![dense](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/dense.png)
 
-The 16384 registers is fully allocated, each register occupies `6 bits`
+完整的申请了 16384 个 registers 的空间, 每一个占用 `6 bits` 的大小
 
 # raw
 
-> hllCount() supports a special internal-only encoding of HLL_RAW, that is, hdr->registers will point to an uint8_t array of HLL_REGISTERS element. This is useful in order to speedup PFCOUNT when called against multiple keys (no need to work with 6-bit integers encoding).
+> hllCount() 支持一种特殊的, 只在程序内部使用的 encoding, 叫做 HLL_RAW, 意思是 hdr->registers 会指向一个 uint8_t 数组, 数组中每一个元素都对应一个 HLL_REGISTERS, 这么做可以在当 PFCOUNT 命令有多个 key 时加速计算速度(不需要再额外处理 6-bit 一个单位的整型)
 
-It's used for merging and computing mulitiply keys in the `PFCOUNT` command
+这个 encoding 只在 `PFCOUNT` 命令中合并计算多个 key 的时候使用
 
 # PFADD
 
-The **PFADD** command will use [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) to generate a 64 bit value for the [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) parameter, take the right most 14 bits to `index` the register among all 16384 registers, and the left 50 bits, count from right to left, take first 1's position as value `count`, and stores the value `count` to the `registers[index]`
+**PFADD** 命令会使用 [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) 函数对对应的 [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md) 参数生成一个 64 bits 大小的的值, 对于这个值, 取最右边的 14 个 bits 作为 16384 个 registers 的位置下标, 剩下的 50 个 bits, 从最右边到最左边第一个出现 1 的位置记作 `count`, 并把这个 `count` 的值存储到 `registers[index]` 中
 
-For example, when you call
+比如你调用如下命令时
 
 	PFADD key1 hello
 
-This is the actual layout of `murmur(hello)` in my little endian machine
+这是我的机器(小端)上的实际的 `murmur(hello)` 之后的值
 
 ![pfadd](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd.png)
 
-Let's represent it as human readable order for better understanding
+我们把它表示成一个读起来更顺畅的形式(大端), 这样理解起来更方便
 
-The right most 14 bits will be represented as an unsigned integer, and that integer is the index of the `registers`
+最右边的 14 个 bits 代表了一个无符号的整型, 这个整型是 `registers` 的下标位置
 
-Value in `count` will be the first position with binary `1` set from 14th to 63th, for example, the first 1 is in 14th, `count` will be 1, of the first 1 is 18th, `count` will be 5
+`count` 中的值会是 14th 到 63th 中第一个出现二进制 `1` 的位置, 比如 14th 上的值为 1, 那么 `count` 为 1， 如果一直往左第一个 1 在 18th 上, 那么 `count` 的值为 5
 
 ![pfadd2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd2.png)
 
-The whole `registers` array should looks like the below diagram, though the actual layout may in [dense](#dense) or [sparse](#sparse) way
+整个 `registers` 数组最终的结果如下图所示, 实际上真实的存储方式可能是 [稀疏](#dense)的或者[稠密的](#sparse)
 
 ![pfadd_full_registers](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd_full_registers.png)
 
-If you call
+如果你继续调用
 
 	PFADD key1 world
 
-The result of `murmur(world)` is in the following diagram, the right most 14 bits's value is 2742, and from the 14th to the left most bit, the first `1` occurs in the 16th position, so the `count` will be 3
+`murmur(world)` 的结果如下图所示, 最右边 14 个 bits 的值为 2742, 并且从 14th 到最左边的 bit 中, 第一个 1 出现在 16th 的位置, 所以 `count` 的值为 3
 
 ![pfadd3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd3.png)
 
-The is the `registers` array after the `PFADD`
+这是 `PFADD` 命令执行后的 `registers` 数组
 
 ![pfadd_full_registers2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd_full_registers2.png)
 
 # PFCOUNT
 
-The first part of `PFCOUNT` expands all the `registers` according to the `encoding`, the second part estimate the actual value according to the formular in [New cardinality estimation algorithms for HyperLogLog sketches](https://arxiv.org/abs/1702.01284)
+`PFCOUNT` 的第一步是根据不同的 `encoding` 把所有的 `registers` 展开成一整个数组的方式, 第二部分根据 [New cardinality estimation algorithms for HyperLogLog sketches](https://arxiv.org/abs/1702.01284) 中的公式结合 `registers` 中存储的值来估算当前这个 key 的最终的值
 
-The basic idea is to count the first position of 1, estimate it as the `count` result
+基本的思路是通过第一个 1 出现的位置的最大值来预估判断这个集合里面总共存在了多少个不同的基数, 如果只有一个 `count` 值, 那么这个预估结果的误差会比较大, 所以取最右边的 14 个 bits 作为 `registers` 数组的下标位置, 这样总共有 16384 个 `count` 值, 通过所有分布在这 16384 个 `registers` 中的值可以平均求出一个误差不会太大的值
 
-If there's only one `count`, the result will be inaccuracy, so there are totally 16384 `registers`, the right most 14 bits represents the index of `registers`, and the final `count` will be computed according to all the values in different `registers`
-
-After the computation, the `count` will be cached in the `card` field, next time `PFCOUNT` called the value in `card` will be returned directly
+在计算完成后, 最终的值会被缓存在 `card` 字段中, 下一次调用 `PFCOUNT` 时会直接返回缓存在 `card` 字段中的值
 
     uint64_t hllCount(struct hllhdr *hdr, int *invalid) {
         double m = HLL_REGISTERS;
@@ -179,7 +177,7 @@ After the computation, the `count` will be cached in the `card` field, next time
         int j;
         int reghisto[64] = {0};
 
-        /* Compute register histogram */
+        /* 展开 register 数组 */
         if (hdr->encoding == HLL_DENSE) {
             hllDenseRegHisto(hdr->registers,reghisto);
         } else if (hdr->encoding == HLL_SPARSE) {
@@ -191,7 +189,7 @@ After the computation, the `count` will be cached in the `card` field, next time
             serverPanic("Unknown HyperLogLog encoding in hllCount()");
         }
 
-        /* Estimate cardinality form register histogram. See:
+        /* 根据下面这篇论文的公式计算基数值
          * "New cardinality estimation algorithms for HyperLogLog sketches"
          * Otmar Ertl, arXiv:1702.01284 */
         double z = m * hllTau((m-reghisto[HLL_Q+1])/(double)m);
@@ -205,6 +203,6 @@ After the computation, the `count` will be cached in the `card` field, next time
         return (uint64_t) E;
     }
 
-# read more
+# 更多资料
 * [redis源码分析2--hyperloglog 基数统计](https://www.cnblogs.com/lh-ty/p/9972901.html)
 * [New cardinality estimation algorithms for HyperLogLog sketches](https://arxiv.org/abs/1702.01284)

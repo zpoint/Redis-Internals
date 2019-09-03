@@ -23,7 +23,7 @@
  - [x] [列表/list(quicklist)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/list_cn.md)
  - [x] [集合(intset/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/set_cn.md)
  - [x] [有序集合(ziplist/skiplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_cn.md)
- - [ ] [hyperloglog](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/hyperloglog_cn.md)
+ - [x] [hyperloglog](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/hyperloglog_cn.md)
  - [ ] stream
 
 # 服务

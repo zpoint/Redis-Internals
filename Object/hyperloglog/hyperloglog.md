@@ -131,7 +131,7 @@ It's used for merging and computing mulitiply keys in the `PFCOUNT` command
 
 # PFADD
 
-The **PFADD** command will use [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) to generate a 64 bit value for the [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) parameter, take the right most 14 bits to `index` the register among all 16384 registers, and the left 50 bits, count from right to left, take first 1's position as value `count`, and stores the value `count` to the `registers[index]`
+The **PFADD** command will use [murmurhash](https://en.wikipedia.org/wiki/MurmurHash) to generate a 64 bits value for the [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) parameter, take the right most 14 bits to `index` the register among all 16384 registers, and the left 50 bits, count from right to left, take first 1's position as value `count`, and stores the value `count` to the `registers[index]`
 
 For example, when you call
 
@@ -145,7 +145,7 @@ Let's represent it as human readable order for better understanding
 
 The right most 14 bits will be represented as an unsigned integer, and that integer is the index of the `registers`
 
-Value in `count` will be the first position with binary `1` set from 14th to 63th, for example, the first 1 is in 14th, `count` will be 1, of the first 1 is 18th, `count` will be 5
+Value in `count` will be the first position with binary `1` set from 14th to 63th, for example, the first 1 is in 14th, `count` will be 1, or the first 1 is 18th, `count` will be 5
 
 ![pfadd2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd2.png)
 
