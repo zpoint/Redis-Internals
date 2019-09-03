@@ -48,7 +48,7 @@
 
 # sparse
 
-我第一次碰到 **sparse** 这个概念的时候是大概2年前在处理一个 [scipy 中的稀疏矩阵(csr_matrix)](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html) 的时候, 在一个非常专业的同时的帮助下才弄清了文档中稀疏矩阵中的 **rows** 和 **cols** 对应的意义
+大概 2 年前在处理一个 NLP 项目时第一次碰到 **sparse** 这个概念, 一个 NLP 项目中使用上了 [scipy 中的稀疏矩阵(csr_matrix)](https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html), 当时看了很久的官方文档不得其意, 后在一个专家同事的帮助下才弄清了文档中稀疏矩阵中的 **rows** 和 **cols** 等参数值的含义
 
 默认情况下当 **hyperloglog** 中存储的元素个数小于一定的值的时候, **redis** 会以稀疏的方式来存储 **hyperloglog** 这个结构
 
