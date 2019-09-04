@@ -9,6 +9,7 @@
 * [dense](#dense)
 * [raw](#raw)
 * [PFADD](#PFADD)
+* [PFCOUNT](#PFCOUNT)
 * [更多资料](#更多资料)
 
 # 需要提前了解的知识
@@ -147,7 +148,7 @@
 
 ![pfadd2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd2.png)
 
-整个 `registers` 数组最终的结果如下图所示, 实际上真实的存储方式可能是 [稀疏](#dense)的或者[稠密的](#sparse)
+整个 `registers` 数组最终的结果如下图所示, 实际上真实的存储方式可能是 [稀疏](#dense) 的或者[稠密](#sparse) 的
 
 ![pfadd_full_registers](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/pfadd_full_registers.png)
 
@@ -165,7 +166,7 @@
 
 # PFCOUNT
 
-`PFCOUNT` 的第一步是根据不同的 `encoding` 把所有的 `registers` 展开成一整个数组的方式, 第二部分根据 [New cardinality estimation algorithms for HyperLogLog sketches](https://arxiv.org/abs/1702.01284) 中的公式结合 `registers` 中存储的值来估算当前这个 key 的最终的值
+`PFCOUNT` 的第一步是根据不同的 `encoding` 把所有的 `registers` 展开成完整的数组, 第二步根据 [New cardinality estimation algorithms for HyperLogLog sketches](https://arxiv.org/abs/1702.01284) 中的公式结合 `registers` 中存储的值来估算当前这个 key 的最终的值
 
 基本的思路是通过第一个 1 出现的位置的最大值来预估判断这个集合里面总共存在了多少个不同的基数, 如果只有一个 `count` 值, 那么这个预估结果的误差会比较大, 所以取最右边的 14 个 bits 作为 `registers` 数组的下标位置, 这样总共有 16384 个 `count` 值, 通过所有分布在这 16384 个 `registers` 中的值可以平均求出一个误差不会太大的值
 

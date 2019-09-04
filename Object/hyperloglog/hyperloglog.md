@@ -9,6 +9,7 @@
 * [dense](#dense)
 * [raw](#raw)
 * [PFADD](#PFADD)
+* [PFCOUNT](#PFCOUNT)
 * [read more](#read-more)
 
 # prerequisites
