@@ -25,6 +25,8 @@
  - [x] [有序集合(ziplist/skiplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_cn.md)
  - [x] [hyperloglog](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/hyperloglog_cn.md)
  - [ ] [streams](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/streams.md)
+ 	- [ ] [rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax.md)
+ 	- [ ] [listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack.md)
 
 # 服务
 - persistence

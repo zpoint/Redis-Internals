@@ -32,7 +32,7 @@ The block in red in the basic layout of `streams` structure
 
 # encoding
 
-`stremas` is a new and special type, the `object encoding` returns `unknown` but it actually has a type label with `OBJ_STREAM`
+`stremas` is a new and special type, the `object encoding` returns `unknown` but it actually has a type labeled with `OBJ_STREAM`
 
     127.0.0.1:6379> xadd mystream * key1 val1
     "1575041330626-0"

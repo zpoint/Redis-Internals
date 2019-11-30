@@ -15,12 +15,12 @@
 
 # memory layout
 
-is a redis implementation [radix tree](https://en.wikipedia.org/wiki/Radix_tree), it's a a space-optimized prefix tree which is used in many places in redis, such as storing `streams` consumer group and cluster keys
+**rax** is a redis implementation [radix tree](https://en.wikipedia.org/wiki/Radix_tree), it's a a space-optimized prefix tree which is used in many places in redis, such as storing `streams` consumer group and cluster keys
 
 
 # internal
 
-
+![rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax.png)
 
 
 # read more
