@@ -17,10 +17,9 @@
 
 **rax** is a redis implementation [radix tree](https://en.wikipedia.org/wiki/Radix_tree), it's a a space-optimized prefix tree which is used in many places in redis, such as storing `streams` consumer group and cluster keys
 
+![rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax.png)
 
 # internal
-
-![rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax.png)
 
 
     127.0.0.1:6379> xadd mystream * key1 val1
@@ -60,16 +59,16 @@ From `redis/src/rax.h`
      *                 /          \
      *       "footer" []          [] "foobar"
 
-The rax stored `mygroup1` is compressed, and can be described as
+The string `mygroup1` stored inside the rax is compressed, and can be described as
 
      *
      *                  ["mygroup1"] ""
      *                     |
      *                    [] "mygroup1"
 
-The first node stored the compressed text `mygroup1`, the second node is an empty leaf, and is also a key, indicate that the string before this node is stored inside this rax
+The first node stored the compressed text `mygroup1`, the second node is an empty leaf, and is also a key, indicate that the string before this node is stored inside this `rax`
 
-This is the actual layout of string `mygroup1`, and the `consumer group` object associate with the string `mygroup1` is pointed to by the key node in the compressed radix tree
+This is the actual layout of string `mygroup1`, and the `consumer group` object associate with the string `mygroup1` is pointed to by the data field of key node in the compressed radix tree
 
 `iskey` indicates if this node contain a key
 
@@ -85,7 +84,7 @@ The first node with `iscompr` flag set, the whole string `mygroup1` is stored in
 
 The second node with `iskey` set means the current node is a key node, it verify that the string before current node(which is `mygroup1`) is actually a valid string stored inside this radix tree, `isnull` is not set, which means there stores some data at the tail of data field, in this case it's a pointer to `streamCG` object, but it can actually be any other pointer, such as cluster key
 
-Let's insert one more consumer group name to the current radix tree
+Let's insert one more `consumer group` name to the current radix tree
 
     127.0.0.1:6379> XGROUP CREATE mystream mygroup2 $
     OK
@@ -99,7 +98,7 @@ We can learn from the diagram that the first node is trimed and a new rax node i
      *                     |
      *                  [1   2] "mygroup"
      *                  /     \
-     *      "mygroup1" []     [] "mygroup12"
+     *      "mygroup1" []     [] "mygroup2"
 
 The middle node is not `compressed`(`iscompr` not set), there will be `size` characters in the data field, and after these characters, there will also be `size` pointers to each `raxNode` structure
 

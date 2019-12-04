@@ -25,7 +25,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
  - [x] [zset(ziplist/skiplist/ht)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset.md)
  - [x] [hyperloglog](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/hyperloglog.md)
  - [ ] [streams](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/streams.md)
- 	- [ ] [rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax.md)
+ 	- [x] [rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax.md)
  	- [ ] [listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack.md)
 
 # Server
