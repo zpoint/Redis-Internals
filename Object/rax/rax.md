@@ -90,7 +90,24 @@ Let's insert one more consumer group name to the current radix tree
     127.0.0.1:6379> XGROUP CREATE mystream mygroup2 $
     OK
 
+![mygroup2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/mygroup2.png)
 
+We can learn from the diagram that the first node is trimed and a new rax node is inserted, the bottom left node is the origin bottom node, the bottom right node is also a newly inserted node
+
+     *
+     *                  ["mygroup"] ""
+     *                     |
+     *                  [1   2] "mygroup"
+     *                  /     \
+     *      "mygroup1" []     [] "mygroup12"
+
+The middle node is not `compressed`(`iscompr` not set), there will be `size` characters in the data field, and after these characters, there will also be `size` pointers to each `raxNode` structure
+
+The two bottom nodes both labeled `iskey = 1`  and `isnull = 0`, it means when reach this node, the current string exists in this radix tree, and therr exists associated data for this key, the data is stored as a pointer in the rear of data field, How to represent the pointer depends on the caller
+
+If you're interested in the insert and remove algorithm in the rax, please refer to the source code
+
+`raxGenericInsert` in `redis/src/rax.c` and `raxRemove` in `redis/src/rax.c`
 
 # read more
 [radix tree(wikipedia)](https://en.wikipedia.org/wiki/Radix_tree)
