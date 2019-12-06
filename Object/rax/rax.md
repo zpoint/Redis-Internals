@@ -109,4 +109,6 @@ If you're interested in the insert and remove algorithm in the rax, please refer
 `raxGenericInsert` in `redis/src/rax.c` and `raxRemove` in `redis/src/rax.c`
 
 # read more
+
 [radix tree(wikipedia)](https://en.wikipedia.org/wiki/Radix_tree)
+[Rax, an ANSI C radix tree implementation](https://github.com/antirez/rax)

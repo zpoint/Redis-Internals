@@ -109,4 +109,6 @@
 `redis/src/rax.c` 中的 `raxGenericInsert` 和 `redis/src/rax.c` 中的 `raxRemove`
 
 # 更多资料
+
 [基数树(wikipedia)](https://zh.wikipedia.org/wiki/%E5%9F%BA%E6%95%B0%E6%A0%91)
+[Rax, an ANSI C radix tree implementation](https://github.com/antirez/rax)
