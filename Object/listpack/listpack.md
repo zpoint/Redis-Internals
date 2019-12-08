@@ -85,6 +85,9 @@ For every vale after `% 100`, we search the table for the exact result for the c
 
 > Listpack, suitable to store lists of string elements in a representation which is space efficient and that can be efficiently accessed from left to right and from right to left.
 
+The first 6 bytes is a header named `LP_HDR_SIZE`, with the first 4 btytes store the total size in bytes of the current `listpack` in little endian order, which means the maximum size of a `listpack` you can create is about 4GB
+
+The second 2 bytes stores how many elements currently stored inside the `listpack`, it's also in little endian order
 
 ![listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack.png)
 
