@@ -89,13 +89,18 @@ The first 6 bytes is a header named `LP_HDR_SIZE`, with the first 4 btytes store
 
 The second 2 bytes stores how many elements currently stored inside the `listpack`, it's also in little endian order
 
-![listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack.png)
+![lp_hdr](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/lp_hdr.png)
 
 # internal
 
+Let's create a stream and inspect the real layout of the internals
 
-    127.0.0.1:6379> xadd mystream * key1 val1
-    "1575180011273-0"
+    127.0.0.1:6379> xadd mystream * key1 128
+    "1576210774421-0"
+
+
+
+
     127.0.0.1:6379> XGROUP CREATE mystream mygroup1 $
     OK
 
