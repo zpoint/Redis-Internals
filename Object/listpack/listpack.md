@@ -6,6 +6,10 @@
 * [ll2string](#ll2string)
 * [memory layout](#memory-layout)
 * [internal](#internal)
+	* [overview](#overview)
+	* [back length](#back-length)
+	* [integer](#integer)
+	* [string](#string)
 * [read more](#read-more)
 
 
@@ -93,17 +97,24 @@ The second 2 bytes stores how many elements currently stored inside the `listpac
 
 # internal
 
+## overview
+
 Let's create a stream and inspect the real layout of the internals
 
     127.0.0.1:6379> xadd mystream * key1 128
     "1576210774421-0"
 
-
+![listpack1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack1.png)
 
 
     127.0.0.1:6379> XGROUP CREATE mystream mygroup1 $
     OK
 
+## back length
+
+## integer
+
+## string
 
 # read more
 
