@@ -99,18 +99,65 @@ The second 2 bytes stores how many elements currently stored inside the `listpac
 
 ## overview
 
-Let's create a stream and inspect the real layout of the internals
+Currently, the **listpack** is used in **stream** structure, let's create a stream and inspect the real layout of the internals(we only focus on the **listpack** part of **stream**)
 
     127.0.0.1:6379> xadd mystream * key1 128
-    "1576210774421-0"
+    "1576291564661-0"
 
 ![listpack1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack1.png)
 
+    127.0.0.1:6379> xadd mystream * key1 val1
+    "1576291596105-0"
 
-    127.0.0.1:6379> XGROUP CREATE mystream mygroup1 $
-    OK
+![listpack2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack2.png)
+
+We can learn that it's a very compact list like data structure, We will leave what's the meaning of each element in the **listpack** to the other article [stream](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/stream/stream.md)
+
+Currently, we just focus on how **listpack** stores different types of elements internally
 
 ## back length
+
+Every element stores inside the **listpack** compose of two parts, the first part is the real element, the second part is the size the current elements occupies in bytes, so that you are able to traverse backward from the **listpack**, the actual size of **back length** varies depends on the size
+
+If **back length** is 1
+
+![backlength_1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/backlength_1.png)
+
+If **back length** is 127
+
+![backlength_127](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/backlength_127.png)
+
+If **back length** is 128
+
+![backlength_128](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/backlength_128.png)
+
+If **back length** is 16384(actually the maximum number of bytes **back length** can take is 5)
+
+![backlength_16384](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/backlength_16384.png)
+
+We can learn that the **back length** is big endian, and only the right most 7 bits of each bytes is used, the left most bit is reserved, and the first byte's left most bit is always 0, the rest bytes' left most bit will always be 1
+
+Why ?
+
+Consider that when you traverse back from certain element, you need to read **back length** to know how many bytes previous element occupies, But don't know how many bytes the **back length** itself takes, so you've to read backward byte by byte, until some flag shows up and you can finish reading **back length**, compose the totally bytes you read to get the value of **back length**
+
+The first bit of each byte in **back length** is this flag, 1 indicates the next(backward) byte is still part of **back length**, 0 indicate that the current byte is the final byte of **back length**, the next(backward) byte will be inside the actual element
+
+	/* p is the first byte when you begin backward read "back length" */
+    uint64_t lpDecodeBacklen(unsigned char *p) {
+        uint64_t val = 0;
+        uint64_t shift = 0;
+        do {
+            val |= (uint64_t)(p[0] & 127) << shift;
+            /* break if the left most bit is 1 */
+            if (!(p[0] & 128)) break;
+            /* continue if the left most bit is 0 */
+            shift += 7;
+            p--;
+            if (shift > 28) return UINT64_MAX;
+        } while(1);
+        return val;
+    }
 
 ## integer
 
