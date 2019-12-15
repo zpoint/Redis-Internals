@@ -161,7 +161,19 @@ The first bit of each byte in **back length** is this flag, 1 indicates the next
 
 ## integer
 
+Besides the **back length**, the other component of each element is the real element, it can be encoded in two types, integer and string
+
+When you type the **xadd** command, the **key** and **value** are both transmitted in **string** format, before storing inside the **listpack**, a function named `string2ll` will be called to try to convert the string to `int64_t` type, it's a signed version of [ll2string](#ll2string) aforementioned(actually, the conversion is not taken place in the `listpack.set`, it's taken place in `stream.set`)
+
+	127.0.0.1:6379> xadd mystream * key1 128
+
+After the conversion, the actual encoding varies
+
+
+
 ## string
+
+
 
 # read more
 
