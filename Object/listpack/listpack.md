@@ -117,7 +117,7 @@ Currently, we just focus on how **listpack** stores different types of elements 
 
 ## back length
 
-Every element stores inside the **listpack** compose of two parts, the first part is the real element, the second part is the size the current elements occupies in bytes, so that you are able to traverse backward from the **listpack**, the actual size of **back length** varies depends on the size
+Every element stores inside the **listpack** compose of two parts, the first part is the real element, the second part is the size the current elements occupies in bytes, so that you are able to traverse backward from the **listpack**, the actual size of **back length** varies depends on the number it represents
 
 If **back length** is 1
 
@@ -131,7 +131,7 @@ If **back length** is 128
 
 ![backlength_128](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/backlength_128.png)
 
-If **back length** is 16384(actually the maximum number of bytes **back length** can take is 5)
+If **back length** is 16384(actually the maximum number of bytes **back length** can occupy is 5)
 
 ![backlength_16384](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/backlength_16384.png)
 
@@ -169,13 +169,21 @@ When you type the **xadd** command, the **key** and **value** are both transmitt
 
 After the conversion, the actual encoding varies
 
-
+![LP_ENCODING_INT](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/LP_ENCODING_INT.png)
 
 ## string
 
+If the conversion to string failed, the **string**(characters) will be stored inside directly, with some header bytes stores the length of the **string**
 
+![LP_ENCODING_STR](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/LP_ENCODING_STR.png)
+
+Let's see an example `key1`
+
+![LP_ENCODING_STR_KEY1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/LP_ENCODING_STR_KEY1.png)
+
+Now, we understand the header of each element in the diagram in [overview](#overview)
 
 # read more
 
-[Listpack README](https://github.com/antirez/listpack)
-[Three Optimization Tips for C++](https://www.facebook.com/notes/facebook-engineering/three-optimization-tips-for-c/10151361643253920)
+* [Listpack README](https://github.com/antirez/listpack)
+* [Three Optimization Tips for C++](https://www.facebook.com/notes/facebook-engineering/three-optimization-tips-for-c/10151361643253920)
