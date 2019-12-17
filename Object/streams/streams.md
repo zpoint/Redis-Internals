@@ -10,6 +10,9 @@
 	* [listpack](#listpack)
 		* [xadd](#xadd)
 		* [xdel](#xdel)
+		* [xrange](#xrange)
+		* [xread](#xread)
+		* [consumer groups](#consumer-groups)
 	* [rax](#rax)
 * [read more](#read-more)
 
@@ -158,6 +161,29 @@ The following is part of the source code
         si->stream->length--;
         /* ... */
     }
+
+
+If we insert a new entry with same `key` and `value`
+
+    127.0.0.1:6379> xadd mystream 1576486352510-0 key1 val1
+    (error) ERR The ID specified in XADD is equal or smaller than the target stream top item
+
+We can see that even if the specific `ID` is deleted, you are not able to insert to the same key with the deleted `ID`
+
+    127.0.0.1:6379> xadd mystream 1576486352510-1 key1 val1
+    "1576486352510-1"
+
+You must insert an `ID` bigger than the top item even if the the top item is deleted, because the comparsion is made between the newly inserted `ID` and the `last_id` field, the `last_id` doesn't store information about whether it's deleted or not
+
+	if (use_id && streamCompareID(use_id,&s->last_id) <= 0) return C_ERR;
+
+### xrange
+
+
+
+### xread
+
+### consumer groups
 
 
 
