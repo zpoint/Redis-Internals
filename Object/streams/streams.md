@@ -193,7 +193,24 @@ If it's the final element in the current `listpack`, go to find the next key nod
 
 ### xread
 
+    127.0.0.1:6379> XREAD COUNT 5 STREAMS mystream 0
+    1) 1) "mystream"
+       2) 1) 1) "1576480551233-0"
+             2) 1) "key1"
+                2) "128"
+          2) 1) "1576486352510-1"
+             2) 1) "key1"
+                2) "val1"
+    127.0.0.1:6379> XREAD COUNT 5 STREAMS mystream 1576486352510-2
+    (nil)
+    127.0.0.1:6379> XREAD COUNT 5 BLOCK 5000 STREAMS mystream 1576486352510-2
+    (nil)
+    (5.04s)
 
+
+The `xread` will find out if the current specific `ID` is less than `streams->last_id`, if so, there are at least one item can be returned to client, if not, check the `block` parameter to see whether it should be blocked or not
+
+The alogrithm is the same as the one used in `xrange`
 
 ### consumer groups
 
