@@ -179,9 +179,21 @@ You must insert an `ID` bigger than the top item even if the the top item is del
 
 ### xrange
 
+We now know the data structure of `streams`, the algorithm `xrange` used is quiet intuitive
 
+![xrange](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xrange.png)
+
+If we send a command `xrange mystream ID3 ID4` to the server, and the location between begin and end looks like the above diagram
+
+Follow the radix tree, find the first `listpack` with `master ID` lower than `ID3`, traverse the `listpack`, for each element in `listpack`, if the current ID(`master ID` + `offset`) is lower than `ID4`, add it the reply
+
+If it's the final element in the current `listpack`, go to find the next key node in the `radix tree`
+
+![xrange2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xrange2.png)
 
 ### xread
+
+
 
 ### consumer groups
 
