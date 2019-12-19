@@ -110,5 +110,5 @@
 
 # 更多资料
 
-[基数树(wikipedia)](https://zh.wikipedia.org/wiki/%E5%9F%BA%E6%95%B0%E6%A0%91)
-[Rax, an ANSI C radix tree implementation](https://github.com/antirez/rax)
+* [基数树(wikipedia)](https://zh.wikipedia.org/wiki/%E5%9F%BA%E6%95%B0%E6%A0%91)
+* [Rax, an ANSI C radix tree implementation](https://github.com/antirez/rax)
