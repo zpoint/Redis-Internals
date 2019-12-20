@@ -22,7 +22,7 @@
 
 # ll2string
 
-我发现了一个有趣的算法, 它可以把 `long long` 类型转换为 string` 类型(在 C 里面是 `char *` 数组)
+我发现了一个有趣的算法, 它可以把 `long long` 类型转换为 `string` 类型(在 C 里面是 `char *` 数组)
 
 算法的基本概念和性能的提升在这篇文章里已经详细的描述了 [Three Optimization Tips for C++](https://www.facebook.com/notes/facebook-engineering/three-optimization-tips-for-c/10151361643253920), 并且最终版被 redis 里的 `redis/src/util.c` 对应文件下的函数所采用并进行改进
 

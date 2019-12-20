@@ -181,7 +181,7 @@ We now know the data structure of `streams`, the algorithm `xrange` used is quie
 
 If we send a command `xrange mystream ID3 ID4` to the server, and the location between begin and end looks like the above diagram
 
-Follow the radix tree, find the first `listpack` with `master ID` lower than `ID3`, traverse the `listpack`, for each element in `listpack`, if the current ID(`master ID` + `offset`) is lower than `ID4`, add it the reply
+Follow the radix tree, find the first `listpack` with `master ID` lower than `ID3`, traverse the `listpack`, for each element in `listpack`, if the current ID(`master ID` + `offset`) is lower than `ID4`, add it to the reply
 
 If it's the final element in the current `listpack`, go to find the next key node in the `radix tree`
 
@@ -229,10 +229,45 @@ What's in the `pel` field and `consumers` field of the `streamCG` ?
 
 ![xgroup_inner](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xgroup_inner.png)
 
+If  we consume one more item
 
-	> XREADGROUP GROUP my_group user2 COUNT 1 STREAMS mystream >
-	> XACK mystream mygroup 1526569495631-0
+    127.0.0.1:6379> XREADGROUP GROUP my_group user1 COUNT 1 STREAMS mystream >
+    1) 1) "mystream"
+       2) 1) 1) "1576486352510-1"
+             2) 1) "key1"
+                2) "val1"
 
+![xgroup_inner2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xgroup_inner2.png)
+
+We now can know why the `ID` in the radix tree are stored in `big endian` order, because `ID` is time based in most case, the more closer the time gap between the items I inserted, the less space will be used and also means faster access
+
+The first 5 bytes between these two `ID` are the same, so the first node is compressed, after the first node, the two seprated node contains the two different `ID`
+
+The radix tree stores `ID` as key, and a `streamNACK` as value
+
+`streamNACK` represents the
+
+> Pending (yet not acknowledged) message in a consumer group.
+
+The defination
+
+    typedef struct streamNACK {
+        mstime_t delivery_time;     /* Last time this message was delivered. */
+        uint64_t delivery_count;    /* Number of times this message was delivered.*/
+        streamConsumer *consumer;   /* The consumer this message was delivered to
+                                       in the last delivery. */
+    } streamNACK;
+
+If we ack the first `ID` as proceeded
+
+    127.0.0.1:6379> XACK mystream my_group 1576480551233-0
+    (integer) 1
+
+![xgroup_after_xack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xgroup_after_xack.png)
+
+The acked `ID` is deleted from `streamCG->pel` and `streamConsumer->pel`
+
+We can learn that `streamCG->pel` stores all the `ID` for all the users in the group, while `streamCG->consumers` stores all users inside it, and each user with a `streamConsumer` object, the `streamConsumer` has a copy of it's own `ID` stores as radix tree
 
 
 # read more
