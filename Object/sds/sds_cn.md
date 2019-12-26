@@ -158,7 +158,7 @@
 
 # string header
 
-根据字符串不同的实际长度, 会使用不同的 ssd 类型
+根据字符串不同的实际长度, 会使用不同的 sds 类型
 
 	redis/src/sds.c
     static inline char sdsReqType(size_t string_size) {
