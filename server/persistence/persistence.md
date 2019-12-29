@@ -5,7 +5,7 @@
 * [related file](#related-file)
 * [AOF](#AOF)
 	* [rewrite](#rewrite)
-	* [when will it be triggered](#when will it be triggered)
+	* [when will it be triggered](#when-will-it-be-triggered)
 	* [policy](#policy)
 		* [everysec](#everysec)
 		* [always](#always)
@@ -103,8 +103,6 @@ redis server will call `propagate` for every command, `propagate` will call `fee
 
 ## policy
 
-We can learn from the code that for every command, it will be pushed into the redis `server.aof_buf` buffer
-
     void flushAppendOnlyFile(int force) {
     	/* ... */
 
@@ -150,12 +148,21 @@ We can learn from the code that for every command, it will be pushed into the re
 
 ![aof_buffer](https://github.com/zpoint/Redis-Internals/blob/5.0/server/persistence/aof_buffer.png)
 
+We can learn from the code that for every command, it will be pushed into the redis `server.aof_buf` buffer, and another routine will call the system call `write` to write the contents in `server.aof_buf` to operating system's buffer
+
+And the different policy controls when system buffer will be flushed
+
 ### everysec
+
+`fsync` will be called every second(not strictly), and the `fsync` is called by another thread, because commands with a second may block the master thread of redis, so redis is not single-thread server precisely
 
 ### always
 
+`fsync` will be called every time in the main loop if there are contents in `server.aof_buf`, and it's directly called by the master thread
+
 ### no
 
+`fsync` won't be called, the operating system takes full control of when the buffer in `server.aof_buf` will be flushed to disk
 
 # RDB
 
