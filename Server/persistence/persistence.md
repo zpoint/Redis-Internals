@@ -67,7 +67,31 @@ Similarly, the next command is `set key1 val1`
 
 ## rewrite
 
+If we keep appending command to the tail of the `AOF` file, it's a matter of time that the `AOF` file will run out of the disk size, or it will become a very large file and takes a long time to reload or process the contents inside the `AOF` file
 
+There's another strategy called `AOF rewrite` to prevent this from happening
+
+	int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+    	/* ... */
+        /* Trigger an AOF rewrite if needed. */
+        if (server.aof_state == AOF_ON &&
+            server.rdb_child_pid == -1 &&
+            server.aof_child_pid == -1 &&
+            server.aof_rewrite_perc &&
+            server.aof_current_size > server.aof_rewrite_min_size)
+        {
+            long long base = server.aof_rewrite_base_size ?
+                server.aof_rewrite_base_size : 1;
+            long long growth = (server.aof_current_size*100/base) - 100;
+            if (growth >= server.aof_rewrite_perc) {
+                serverLog(LL_NOTICE,"Starting automatic rewriting of AOF on %lld%% growth",growth);
+                rewriteAppendOnlyFileBackground();
+            }
+        }
+
+`aof_rewrite_perc` is configured in the configure file, it's the growth rate that will trigger the background `AOF rewrite` automatically
+
+![aofrewrite](https://github.com/zpoint/Redis-Internals/blob/5.0/server/persistence/aofrewrite.png)
 
 ## when will it be triggered
 
