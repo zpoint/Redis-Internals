@@ -91,7 +91,7 @@ There's another strategy called `AOF rewrite` to prevent this from happening
 
 `aof_rewrite_perc` is configured in the configure file, it's the growth rate that will trigger the background `AOF rewrite` automatically
 
-![aofrewrite](https://github.com/zpoint/Redis-Internals/blob/5.0/server/persistence/aofrewrite.png)
+![aofrewrite](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/aofrewrite.png)
 
 ## when will it be triggered
 
@@ -170,7 +170,7 @@ redis server will call `propagate` for every command, `propagate` will call `fee
     }
 
 
-![aof_buffer](https://github.com/zpoint/Redis-Internals/blob/5.0/server/persistence/aof_buffer.png)
+![aof_buffer](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/aof_buffer.png)
 
 We can learn from the code that for every command, it will be pushed into the redis `server.aof_buf` buffer, and another routine will call the system call `write` to write the contents in `server.aof_buf` to operating system's buffer
 
