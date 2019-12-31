@@ -5,12 +5,13 @@
 * [related file](#related-file)
 * [AOF](#AOF)
 	* [rewrite](#rewrite)
-	* [when will it be triggered](#when-will-it-be-triggered)
+	* [when will aof be triggered](#when-will-aof-be-triggered)
 	* [policy](#policy)
 		* [everysec](#everysec)
 		* [always](#always)
 		* [no](#no)
 * [RDB](#RDB)
+	* [when will rdb be triggered](#when-will-rdb-be-triggered)
 
 # related file
 
@@ -93,7 +94,7 @@ There's another strategy called `AOF rewrite` to prevent this from happening
 
 ![aofrewrite](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/aofrewrite.png)
 
-## when will it be triggered
+## when will aof be triggered
 
 redis server will call `propagate` for every command, `propagate` will call `feedAppendOnlyFile`, `feedAppendOnlyFile` will do some pre process(translate EXPIRE/PEXPIRE/EXPIREAT into PEXPIREAT) and save the command as the aformentioned format to `server.aof_buf`
 
@@ -190,3 +191,38 @@ And the different policy controls when system buffer will be flushed
 
 # RDB
 
+![rdb](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/rdb.png)
+
+## when will rdb be triggered
+
+	int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+        if (server.rdb_child_pid != -1 || server.aof_child_pid != -1 ||
+            ldbPendingChildren())
+        {
+            /* ... */
+        } else {
+            /* If there is not a background saving/rewrite in progress check if
+             * we have to save/rewrite now. */
+            for (j = 0; j < server.saveparamslen; j++) {
+                struct saveparam *sp = server.saveparams+j;
+
+                /* Save if we reached the given amount of changes,
+                 * the given amount of seconds, and if the latest bgsave was
+                 * successful or if, in case of an error, at least
+                 * CONFIG_BGSAVE_RETRY_DELAY seconds already elapsed. */
+                if (server.dirty >= sp->changes &&
+                    server.unixtime-server.lastsave > sp->seconds &&
+                    (server.unixtime-server.lastbgsave_try >
+                     CONFIG_BGSAVE_RETRY_DELAY ||
+                     server.lastbgsave_status == C_OK))
+                {
+                    serverLog(LL_NOTICE,"%d changes in %d seconds. Saving...",
+                        sp->changes, (int)sp->seconds);
+                    rdbSaveInfo rsi, *rsiptr;
+                    rsiptr = rdbPopulateSaveInfo(&rsi);
+                    rdbSaveBackground(server.rdb_filename,rsiptr);
+                    break;
+                }
+            }
+        /* ... */
+    }
