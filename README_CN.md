@@ -29,7 +29,7 @@
  	- [x] [listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack_cn.md)
 
 # 服务
-- [ ] [持久化](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence.md)
+- [x] [持久化](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence_cn.md)
 - pubsub
 - protocol
 - transaction

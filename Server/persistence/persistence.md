@@ -26,6 +26,8 @@ There're currently two types of persistence available in redis
 
 # AOF
 
+`AOF` is the abbreviation of Append Only File
+
 If we set `appendonly yes` in `redis.conf`
 
 And in command line
@@ -99,8 +101,12 @@ There's another strategy called `AOF rewrite` to prevent this from happening
 
 redis server will call `propagate` for every command, `propagate` will call `feedAppendOnlyFile`, `feedAppendOnlyFile` will do some pre process(translate EXPIRE/PEXPIRE/EXPIREAT into PEXPIREAT) and save the command as the aformentioned format to `server.aof_buf`
 
-    if (propagate_flags != PROPAGATE_NONE && !(c->cmd->flags & CMD_MODULE))
-        propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+	void call(client *c, int flags)
+    {
+        /* ... */
+        if (propagate_flags != PROPAGATE_NONE && !(c->cmd->flags & CMD_MODULE))
+            propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+    }
 
     void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc, int flags)
     {
@@ -184,13 +190,15 @@ And the different policy controls when system buffer will be flushed
 
 ### always
 
-`fsync` will be called every time in the main loop if there are contents in `server.aof_buf`, and it's directly called by the master thread
+`fsync` will be called for every executed command, and it's directly called by the master thread
 
 ### no
 
-`fsync` won't be called, the operating system takes full control of when the buffer in `server.aof_buf` will be flushed to disk
+`fsync` won't be called, the operating system takes full control of when the buffer in the operating system's buffer will be flushed to disk
 
 # RDB
+
+`RDB` is the abbreviation of Redis Database
 
 If we set `appendonly no` in `redis.conf`
 
@@ -201,6 +209,7 @@ And in command line
 
 We start `redis-server` and check the rdb file
 
+	% od -A d -t cu1 -c dump.rdb
     0000000    R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
                82  69  68  73  83  48  48  48  57 250   9 114 101 100 105 115
                R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
@@ -225,7 +234,7 @@ We start `redis-server` and check the rdb file
     0000112    Y 274
                89 229
 
-The above content is the empty rdb file, it begin with
+The above content is a rdb file with only one key, it begin with
 
 `REDIS0009` is the a magic constant `"REDIS%04d"`, the last 4 digits is the version number
 

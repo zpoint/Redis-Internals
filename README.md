@@ -30,7 +30,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 
 # Server
 
-- [ ] [persistence](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence.md)
+- [x] [persistence](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence.md)
 - pubsub
 - protocol
 - transaction
