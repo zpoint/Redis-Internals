@@ -13,6 +13,7 @@
 * [RDB](#RDB)
 	* [rdb什么时候会被触发](#rdb什么时候会被触发)
 	* [策略](#策略)
+* [更多资料](#更多资料)
 
 # 相关位置文件
 
@@ -316,4 +317,5 @@ RDB 是 Redis - DataBase 的简称
 
 你可以指定多条规则, 所有的规则会被存储在 `server.saveparam` 这个数组中, 如果当前的服务状态匹配上了数组中的任意一个规则, `serverCron` 这个函数就会触发 `rdbSaveBackground`
 
-
+# 更多资料
+* [Redis 官方文档->持久化](https://redis.io/topics/persistence)

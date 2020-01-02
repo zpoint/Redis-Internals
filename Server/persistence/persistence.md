@@ -13,6 +13,7 @@
 * [RDB](#RDB)
 	* [when will rdb be triggered](#when-will-rdb-be-triggered)
 	* [policy](#policy)
+* [read more](#read-more)
 
 # related file
 
@@ -320,3 +321,5 @@ The following line in configure file means run `rdbSaveBackground`
 
 You can specific several rules, all of them will be stored in the array `server.saveparam`, if the server status matches any of the rule in the array, `rdbSaveBackground` will be triggered in the `serverCron` function
 
+# read more
+* [Redis Document->Persistence](https://redis.io/topics/persistence)
