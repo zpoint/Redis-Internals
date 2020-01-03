@@ -30,7 +30,7 @@
 
 # 服务
 - [x] [持久化](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence_cn.md)
-- pubsub
+- [ ] [pubsub](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/pubsub_cn.md)
 - protocol
 - transaction
 - cluster
