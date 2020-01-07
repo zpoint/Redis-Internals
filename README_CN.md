@@ -28,13 +28,15 @@
  	- [x] [rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax_cn.md)
  	- [x] [listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack_cn.md)
 
+- geohash
+
 # 服务
 - [x] [持久化](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence_cn.md)
 - [x] [发布订阅(pubsub)](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/pubsub_cn.md)
-- protocol
-- transaction
 - cluster
 - redlock
+- protocol
+- transaction
 
 # 为什么创建这个仓库
 

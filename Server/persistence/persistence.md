@@ -187,7 +187,7 @@ And the different policy controls when system buffer will be flushed
 
 ### everysec
 
-`fsync` will be called every second(not strictly), and the `fsync` is called by another thread, because commands with a second may block the master thread of redis, so redis is not single-thread server precisely
+`fsync` will be called every second(not strictly), and the `fsync` is called by another thread, because commands within a second may block the master thread of redis, so redis is not single-thread server precisely
 
 ### always
 
