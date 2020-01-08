@@ -34,6 +34,7 @@
 - [x] [持久化](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence_cn.md)
 - [x] [发布订阅(pubsub)](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/pubsub_cn.md)
 - cluster
+- replica
 - redlock
 - protocol
 - transaction
