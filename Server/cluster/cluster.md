@@ -42,7 +42,7 @@ For client type the following command to connect to any of the nodes
 
 Every server stores the cluster state inside the server status
 
-![clusterState](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/clusterState.md)
+![clusterState](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/clusterState.png)
 
 # slots
 
@@ -81,11 +81,11 @@ The set command
 
 can be represented as
 
-![slots](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/slots.md)
+![slots](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/slots.png)
 
 or
 
-![slots2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/slots2.md)
+![slots2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/slots2.png)
 
 # read more
 * [Redis Document->cluster-tutorial](https://redis.io/topics/cluster-tutorial)
