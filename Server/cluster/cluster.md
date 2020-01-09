@@ -5,6 +5,7 @@
 * [related file](#related-file)
 * [cluster](#cluster)
 * [slots](#slots)
+* [reshard](#reshard)
 * [failover](#failover)
 * [read more](#read-more)
 
@@ -73,9 +74,9 @@ This is the hash function of the `key`
         return crc16(key+s+1,e-s-1) & 0x3FFF;
     }
 
-The set command
+If we execute the `set` command
 
-    127.0.0.1:7000> set key1 val1
+    127.0.0.1:7000> SET key1 val1
     -> Redirected to slot [9189] located at 127.0.0.1:7001
     OK
 
@@ -87,5 +88,38 @@ or
 
 ![slots2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/slots2.png)
 
+# reshard
+
+![reshard0](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard0.png)
+
+The above diagram is part of the cluster status in `127.0.0.1:7001`
+
+`myself` points to the master cluster node for current server instance
+
+`size` is the cluster size
+
+
+
+`key1` is currently in slot 9189 and slot 9189 in located in `127.0.0.1:7001`
+
+If we want to reshard the slot 9189 from `127.0.0.1:7001` to `127.0.0.1:7000`
+
+    127.0.0.1:7000> CLUSTER SETSLOT 9189 IMPORTING fd1099f4aff0be7fb014e1473c404631a764ffa4
+    OK
+    127.0.0.1:7001> CLUSTER SETSLOT 9189 MIGRATING 4e1901ce95cfb749b94c435e1f1c123ae0579e79
+    OK
+    127.0.0.1:7001> CLUSTER GETKEYSINSLOT 9189 100
+    1) "key1"
+    127.0.0.1:7001> MIGRATE 127.0.0.1 7000 key1 0 5000
+    OK
+    127.0.0.1:7000> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
+    OK
+    127.0.0.1:7001> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
+    OK
+    127.0.0.1:7002> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
+    OK
+
+
 # read more
 * [Redis Document->cluster-tutorial](https://redis.io/topics/cluster-tutorial)
+* [Redis Document->cluster-setslot](https://redis.io/commands/cluster-setslot)
