@@ -96,9 +96,21 @@ The above diagram is part of the cluster status in `127.0.0.1:7001`
 
 `myself` points to the master cluster node for current server instance
 
+`currentEpoch` is the epoch number in current node
+
 `size` is the cluster size
 
+`nodes` is a dictionary, stores all the nodes as `clusterNode` structure in the cluster, `node ID` as key, and `clusterNode` as value, `clusterNode` stores all the information needed, such as slot bitmap
 
+`migrating_slots_to` is an array of pointer, length 16384, if there's any slot in  `migrating_slots_to` state, the `migrating_slots_to[i]` will stores the pointer pointed to that `clusterNode`
+
+`importing_slots_from` is similar to `migrating_slots_to`
+
+`slots` is an array of pointer, length is 16384, each pointer points to the `clusterNode` structure the slot belongs to
+
+`slots_keys_count` stores number of emelents for every slots
+
+And
 
 `key1` is currently in slot 9189 and slot 9189 in located in `127.0.0.1:7001`
 
