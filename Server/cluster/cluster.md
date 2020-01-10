@@ -114,7 +114,8 @@ And
 
 `key1` is currently in slot 9189 and slot 9189 in located in `127.0.0.1:7001`
 
-If we want to reshard the slot 9189 from `127.0.0.1:7001` to `127.0.0.1:7000`
+If we want to reshard the slot 9189 from `127.0.0.1:7001` to `127.0.0.1:7000`, We need to execute all the following commands(actually redis sentinal will take care of the commands, we execute them manually for illustration)
+
 
     127.0.0.1:7000> CLUSTER SETSLOT 9189 IMPORTING fd1099f4aff0be7fb014e1473c404631a764ffa4
     OK
@@ -130,6 +131,31 @@ If we want to reshard the slot 9189 from `127.0.0.1:7001` to `127.0.0.1:7000`
     OK
     127.0.0.1:7002> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
     OK
+
+Before execute
+
+![reshard1](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard1.png)
+
+We can find that `slots_keys_count` only stores nunmber of elements for slots in the current node, not for slots among all the nodes in the cluster
+
+After
+
+    127.0.0.1:7000> CLUSTER SETSLOT 9189 IMPORTING fd1099f4aff0be7fb014e1473c404631a764ffa4
+    127.0.0.1:7001> CLUSTER SETSLOT 9189 MIGRATING 4e1901ce95cfb749b94c435e1f1c123ae0579e79
+    OK
+
+![reshard2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard2.png)
+
+`importing_slots_from[9189]` in `127.0.0.1:7000` now stores `addrB` instead of `NULL` pointer
+
+And `migrating_slots_to[9189]` in `127.0.0.1:7001` now stores `addrA`
+
+In the current state, We can still get `key1` from `127.0.0.1:7001`
+
+    127.0.0.1:7000> get key1
+    -> Redirected to slot [9189] located at 127.0.0.1:7001
+    "val1"
+
 
 
 # read more
