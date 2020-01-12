@@ -129,8 +129,6 @@ If we want to reshard the slot 9189 from `127.0.0.1:7001` to `127.0.0.1:7000`, W
     OK
     127.0.0.1:7001> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
     OK
-    127.0.0.1:7002> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
-    OK
 
 Before execute
 
@@ -141,6 +139,7 @@ We can find that `slots_keys_count` only stores nunmber of elements for slots in
 After
 
     127.0.0.1:7000> CLUSTER SETSLOT 9189 IMPORTING fd1099f4aff0be7fb014e1473c404631a764ffa4
+    OK
     127.0.0.1:7001> CLUSTER SETSLOT 9189 MIGRATING 4e1901ce95cfb749b94c435e1f1c123ae0579e79
     OK
 
@@ -156,6 +155,45 @@ In the current state, We can still get `key1` from `127.0.0.1:7001`
     -> Redirected to slot [9189] located at 127.0.0.1:7001
     "val1"
 
+And after
+
+    127.0.0.1:7001> MIGRATE 127.0.0.1 7000 key1 0 5000
+    OK
+
+![reshard3](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard3.png)
+
+The `slots_keys_count[9189]` in `127.0.0.1:7000` becomes 1 and the same field in `127.0.0.1:7001` becomes 0
+
+If we try to get `key1`
+
+    127.0.0.1:7001> get key1
+    (error) ASK 9189 127.0.0.1:7000
+
+`127.0.0.1:7001` says you need to `ASK` the `127.0.0.1:7000`, since the `migrating_slots_to[9189]` is set to node in `127.0.0.1:7000` and current node does not have `key1`
+
+
+    127.0.0.1:7000> ASKING
+    OK
+    127.0.0.1:7000> get key1
+    "val1"
+
+While in `127.0.0.1:7000`, the command follows `ASKING` will not be redirected to other node if the `importing_slots_from[target slot]` is not empty, it will try to execute in the current node and return the result
+
+    127.0.0.1:7000> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
+    OK
+
+![reshard4](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard4.png)
+
+After the `CLUSTER SETSLOT` in `127.0.0.1:7000`, the `addrA`'s bitfield in `9189` in bitmap inside `clusterNodeA` is set and `numslots` is added, the same bitfield in `addrB` is unset and `numslots` minus 1, `importing_slots_from[9189]` is reset to NULL
+
+    127.0.0.1:7001> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
+    OK
+
+![reshard4](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard4.png)
+
+The same happens for node `127.0.0.1:7001`
+
+![reshard5](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard5.png)
 
 
 # read more
