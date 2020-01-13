@@ -7,6 +7,7 @@
 * [slots](#slots)
 * [reshard](#reshard)
 * [failover](#failover)
+* [gossip](#gossip)
 * [read more](#read-more)
 
 # related file
@@ -114,7 +115,7 @@ And
 
 `key1` is currently in slot 9189 and slot 9189 in located in `127.0.0.1:7001`
 
-If we want to reshard the slot 9189 from `127.0.0.1:7001` to `127.0.0.1:7000`, We need to execute all the following commands(actually redis sentinal will take care of the commands, we execute them manually for illustration)
+If we want to reshard the slot 9189 from `127.0.0.1:7001` to `127.0.0.1:7000`, We need to execute all the following commands(actually redis sentinal will take care of the commands, we execute them manually for illustration purpose)
 
 
     127.0.0.1:7000> CLUSTER SETSLOT 9189 IMPORTING fd1099f4aff0be7fb014e1473c404631a764ffa4
@@ -199,3 +200,4 @@ The same happens for node `127.0.0.1:7001`
 # read more
 * [Redis Document->cluster-tutorial](https://redis.io/topics/cluster-tutorial)
 * [Redis Document->cluster-setslot](https://redis.io/commands/cluster-setslot)
+* [Redis Document->cluster-spec](https://redis.io/topics/cluster-spec)
