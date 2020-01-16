@@ -35,6 +35,7 @@ This repository is my notes for [redis](https://github.com/antirez/redis) source
 - [x] [persistence](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence.md)
 - [x] [pubsub](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/pubsub.md)
 - [ ] [cluster](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster.md)
+	- [x] [reshard](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster.md#reshard)
 	- [ ] [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md)
 	- [ ] [failover](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/failover.md)
 - replica
