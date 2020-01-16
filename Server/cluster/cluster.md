@@ -6,8 +6,8 @@
 * [cluster](#cluster)
 * [slots](#slots)
 * [reshard](#reshard)
-* [failover](#failover)
 * [gossip](#gossip)
+* [failover](#failover)
 * [read more](#read-more)
 
 # related file
@@ -195,6 +195,7 @@ After the `CLUSTER SETSLOT` in `127.0.0.1:7000`, the `addrA`'s bitfield in `9189
 The same happens for node `127.0.0.1:7001`
 
 ![reshard5](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard5.png)
+
 
 
 # read more
