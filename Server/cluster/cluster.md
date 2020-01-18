@@ -6,8 +6,8 @@
 * [cluster](#cluster)
 * [slots](#slots)
 * [reshard](#reshard)
-* [gossip](#https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md)
-* [failover](#https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/failover.md)
+* [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md)
+* [failover](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/failover.md)
 * [read more](#read-more)
 
 # related file
