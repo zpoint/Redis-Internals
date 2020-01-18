@@ -97,12 +97,34 @@ Redis currently support the following MSG type
 
 So, If we're nodeC, We will have a connection will nodeA, nodeB and all other slaves of nodeA, and follow the above rules to `PING` some other nodes periodically
 
-[overview](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/overview.png)
-
+![overview](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/overview.png)
 This is what the `MSG` between nodes looks like
 
-[msg](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/msg.png)
+![msg](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/msg.png)
 
 
 And the `PING` message
+
+![ping](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/ping.png)
+
+`clusterMsg` stores the information about the sender, including it's `epoch` number, slot bit map, port number, cluster bus port number and etc
+
+In the `clusterMsgData` fields, Every gossip message will carry some nodes information in the cluster, so after several gossip `PING` message, a node will know every other nodes' information finally
+
+The exact number of some is` min(freshnodes, wanted)`
+
+    /* freshnodes is the max number of nodes we can hope to append at all:
+     * nodes available minus two (ourself and the node we are sending the
+     * message to). However practically there may be less valid nodes since
+     * nodes in handshake state, disconnected, are not considered. */
+    int freshnodes = dictSize(server.cluster->nodes)-2;
+
+    /*
+     * How many gossip sections we want to add? 1/10 of the number of nodes
+     * and anyway at least 3. Why 1/10?
+     * The reason is in src/cluster.c
+     */
+    wanted = floor(dictSize(server.cluster->nodes)/10);
+
+So, the node in `clusterMsgData` fields chosen is random
 

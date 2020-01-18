@@ -190,8 +190,6 @@ After the `CLUSTER SETSLOT` in `127.0.0.1:7000`, the `addrA`'s bitfield in `9189
     127.0.0.1:7001> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
     OK
 
-![reshard4](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard4.png)
-
 The same happens for node `127.0.0.1:7001`
 
 ![reshard5](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard5.png)
