@@ -4,6 +4,8 @@
 
 * [cluster bus](#cluster-bus)
 * [when will the MSG be sent](#when-will-the-MSG-be-sent)
+* [ping](#ping)
+* [pong](#pong)
 
 # cluster bus
 
@@ -98,6 +100,9 @@ Redis currently support the following MSG type
 So, If we're nodeC, We will have a connection will nodeA, nodeB and all other slaves of nodeA, and follow the above rules to `PING` some other nodes periodically
 
 ![overview](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/overview.png)
+
+# ping
+
 This is what the `MSG` between nodes looks like
 
 ![msg](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/msg.png)
@@ -127,4 +132,22 @@ The exact number of some is` min(freshnodes, wanted)`
     wanted = floor(dictSize(server.cluster->nodes)/10);
 
 So, the node in `clusterMsgData` fields chosen is random
+
+# pong
+
+The reply of `PING` message is `PONG` message, The `PONG` message is nearly the same as `PING` message except for the `hdr->type` field
+
+    /* Build the message header. hdr must point to a buffer at least
+     * sizeof(clusterMsg) in bytes. */
+    void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
+        /* ... */
+        hdr->ver = htons(CLUSTER_PROTO_VER);
+        hdr->sig[0] = 'R';
+        hdr->sig[1] = 'C';
+        hdr->sig[2] = 'm';
+        hdr->sig[3] = 'b';
+        hdr->type = htons(type);
+        memcpy(hdr->sender,myself->name,CLUSTER_NAMELEN);
+        /* ... */
+    }
 
