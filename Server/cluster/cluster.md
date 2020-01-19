@@ -42,7 +42,7 @@ For client type the following command to connect to any of the nodes
 
 	./redis-cli -h 127.0.0.1 -p 7000 -c
 
-Every server stores the cluster state inside the server status
+Every node stores the cluster state inside the server status
 
 ![clusterState](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/clusterState.png)
 
@@ -185,7 +185,7 @@ While in `127.0.0.1:7000`, the command follows `ASKING` will not be redirected t
 
 ![reshard4](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/reshard4.png)
 
-After the `CLUSTER SETSLOT` in `127.0.0.1:7000`, the `addrA`'s bitfield in `9189` in bitmap inside `clusterNodeA` is set and `numslots` is added, the same bitfield in `addrB` is unset and `numslots` minus 1, `importing_slots_from[9189]` is reset to NULL
+After the `CLUSTER SETSLOT` in `127.0.0.1:7000`, the `addrA`'s bitfield in `9189` in bitmap inside `clusterNodeA` is set and `numslots` is added, the same bitfield in `addrB` is unset and `numslots` minus 1, `importing_slots_from[9189]` is reset to `NULL`
 
     127.0.0.1:7001> CLUSTER SETSLOT 9189 NODE 4e1901ce95cfb749b94c435e1f1c123ae0579e79
     OK
