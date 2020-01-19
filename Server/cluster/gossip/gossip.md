@@ -27,7 +27,7 @@ From [cluster-tutorial](https://redis.io/topics/cluster-tutorial)
 
 # when will the MSG be sent
 
-Redis currently support the following MSG type
+Redis currently support the following MSG types
 
     #define CLUSTERMSG_TYPE_PING 0          /* Ping */
     #define CLUSTERMSG_TYPE_PONG 1          /* Pong (reply to Ping) */
@@ -114,7 +114,7 @@ And the `PING` message
 
 `clusterMsg` stores the information about the sender, including it's `epoch` number, slot bit map, port number, cluster bus port number and etc
 
-In the `clusterMsgData` fields, Every gossip message will carry some nodes information in the cluster, so after several gossip `PING` message, a node will know every other nodes' information finally
+In the `clusterMsgData` fields, Every gossip message will carry some nodes information in the cluster, so after several gossip `PING/PONG` exchange, a node will know every other nodes' information finally
 
 The exact number of some is` min(freshnodes, wanted)`
 
@@ -127,7 +127,7 @@ The exact number of some is` min(freshnodes, wanted)`
     /*
      * How many gossip sections we want to add? 1/10 of the number of nodes
      * and anyway at least 3. Why 1/10?
-     * The reason is in src/cluster.c
+     * The reason is in redis/src/cluster.c
      */
     wanted = floor(dictSize(server.cluster->nodes)/10);
 
@@ -135,7 +135,20 @@ So, the node in `clusterMsgData` fields chosen is random
 
 # pong
 
+Every `PING` message will reply with a `PONG` message
+
 The reply of `PING` message is `PONG` message, The `PONG` message is nearly the same as `PING` message except for the `hdr->type` field
+
+
+	int clusterProcessPacket(clusterLink *link) {
+    	/* ... */
+        /* Initial processing of PING and MEET requests replying with a PONG. */
+        if (type == CLUSTERMSG_TYPE_PING || type == CLUSTERMSG_TYPE_MEET) {
+            /* ... */
+            clusterSendPing(link,CLUSTERMSG_TYPE_PONG);
+        }
+        /* ... */
+    }
 
     /* Build the message header. hdr must point to a buffer at least
      * sizeof(clusterMsg) in bytes. */
@@ -151,3 +164,4 @@ The reply of `PING` message is `PONG` message, The `PONG` message is nearly the 
         /* ... */
     }
 
+If you're interested in other type of message, please read the source code in `redis/src/cluster.c`
