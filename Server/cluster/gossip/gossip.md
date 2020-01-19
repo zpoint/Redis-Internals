@@ -44,7 +44,7 @@ Redis currently support the following MSG types
 
 `clusterCron` will traverse every node and call `clusterSendPing` if there're currently not active connection for current node and the target node
 
-`clusterCron` will also ping 1-5 random nodes every second
+`clusterCron` will also ping 1 random nodes every second
 
     /* Ping some random node 1 time every 10 iterations, so that we usually ping
      * one random node every second. */
@@ -116,7 +116,7 @@ And the `PING` message
 
 In the `clusterMsgData` fields, Every gossip message will carry some nodes information in the cluster, so after several gossip `PING/PONG` exchange, a node will know every other nodes' information finally
 
-The exact number of some is` min(freshnodes, wanted)`
+The exact number of nodes in `clusterMsgData` is `min(freshnodes, wanted)`
 
     /* freshnodes is the max number of nodes we can hope to append at all:
      * nodes available minus two (ourself and the node we are sending the
@@ -128,6 +128,7 @@ The exact number of some is` min(freshnodes, wanted)`
      * How many gossip sections we want to add? 1/10 of the number of nodes
      * and anyway at least 3. Why 1/10?
      * The reason is in redis/src/cluster.c
+     * It's mainly because you can receive failure report in the specific window of time
      */
     wanted = floor(dictSize(server.cluster->nodes)/10);
 
