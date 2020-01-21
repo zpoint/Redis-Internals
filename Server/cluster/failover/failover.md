@@ -59,14 +59,14 @@ We can find that the node `127.0.0.1:7003` becomes master and the epoch num is t
 
 What happended when we fail the node `127.0.0.1:7000` ?
 
-![overview](https://github.com/zpoint/Redis-Internals/tree/5.0/Server/cluster/failover/overview.png)
+![overview](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/overview.png)
 
-
+For `master/7001` and `master/7002`
 
 `clusterCron` will mark the node as `PFAIL` state if the current node can't receive the `PONG` message for the target node in `cluster-node-timeout` millseconds, default value is 15s
 
-        /* Compute the delay of the PONG. Note that if we already received
-         * the PONG, then node->ping_sent is zero, so can't reach this code at all. */
+      /* Compute the delay of the PONG. Note that if we already received
+       * the PONG, then node->ping_sent is zero, so can't reach this code at all. */
         delay = now - node->ping_sent;
 
     if (delay > server.cluster_node_timeout) {
@@ -79,6 +79,10 @@ What happended when we fail the node `127.0.0.1:7000` ?
             update_state = 1;
         }
     }
+
+`master/7001` and `master/7002` will communicate with `master/7000` via [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md) protocol, After `cluster-node-timeout` millseconds they are not able to receive the `PONG` message, each of them will mark `master/7000` as `PFAIL` state
+
+![pfail](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/pfail.png)
 
 
 # FAIL
