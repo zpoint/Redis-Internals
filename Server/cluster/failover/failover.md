@@ -126,3 +126,11 @@ If `master/7001` is the first node that record three `PFAIL` state for node `mas
 
 # ELECT
 
+As soon as a node gets 3 `PFAIL` state for node `master/7000`, it marks it as `FAIL` state
+
+![elect](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect.png)
+
+And broadcast the `FAIL` state info to all reachable nodes
+
+![elect2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect2.png)
+
