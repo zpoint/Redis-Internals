@@ -2,19 +2,19 @@
 
 # contents
 
-* [prerequisites](#prerequisites)
+* [需要提前了解的知识](#需要提前了解的知识)
 * [PFAIL](#PFAIL)
 * [FAIL](#FAIL)
 * [ELECT](#ELECT)
 
-# prerequisites
+# 需要提前了解的知识
 
-* [cluster->reshard](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster.md#reshard)
-* [cluster->gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md)
+* [cluster->reshard](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster_cn.md#reshard)
+* [cluster->gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip_cn.md)
 
-The cluster example is set up in [prerequisites->cluster](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster.md)
+[prerequisites->cluster](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster_cn.md) 中展示了示例集群的配置
 
-If we add a new node `127.0.0.1:7003`
+如果我们增加一个新的节点 `127.0.0.1:7003`
 
     127.0.0.1:7003> CLUSTER MEET 127.0.0.1 7000
     OK
@@ -25,7 +25,7 @@ If we add a new node `127.0.0.1:7003`
     89c21152eedde6d9dec2fcebf4330b39810bc179 127.0.0.1:7000@17000 master - 0 1579513066797 1 connected 0-5460
     127.0.0.1:7003> CLUSTER REPLICATE 89c21152eedde6d9dec2fcebf4330b39810bc179
 
-And set it as a slave of node `127.0.0.1:7000`
+并把它设置为节点 `127.0.0.1:7000` 的从节点
 
     127.0.0.1:7003> CLUSTER REPLICATE 89c21152eedde6d9dec2fcebf4330b39810bc179
     OK
@@ -36,7 +36,7 @@ And set it as a slave of node `127.0.0.1:7000`
     89c21152eedde6d9dec2fcebf4330b39810bc179 127.0.0.1:7000@17000 master - 0 1579513201833 1 connected 0-5460
 
 
-If we fail the node `127.0.0.1:7000`
+并且让节点 `127.0.0.1:7000` 宕机
 
     ^C943:signal-handler (1579016631) Received SIGINT scheduling shutdown...
     943:M 14 Jan 2020 23:43:51.330 # User requested shutdown...
@@ -44,7 +44,7 @@ If we fail the node `127.0.0.1:7000`
     943:M 14 Jan 2020 23:43:51.330 # Redis is now ready to exit, bye bye...
     zpoint@bogon 7000 %
 
-We can find that the node `127.0.0.1:7003` becomes master and the epoch num is the greatest
+我们可以发现节点 `127.0.0.1:7003` 变成了主节点并且该节点的 epoch 值成了集群中最大的值
 
     127.0.0.1:7003> CLUSTER NODES
     ba060347b647e2cb050eea666f087fd08d4e42d7 127.0.0.1:7001@17001 master - 0 1579572427408 2 connected 5461-10922
@@ -55,21 +55,17 @@ We can find that the node `127.0.0.1:7003` becomes master and the epoch num is t
 
 # PFAIL
 
-What happended when we fail the node `127.0.0.1:7000` ?
+我们让节点 `127.0.0.1:7000` 宕机时发生了什么 ?
 
 ![overview](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/overview.png)
 
-For `master/7001`, `master/7002` and `slave/7003`
+对于 `master/7001`, `master/7002` 还有 `slave/7003`, `clusterCron` 会在超过 `cluster-node-timeout` 毫秒后还无法接收到 PONG 消息的节点标记成 `PFAIL`, 默认值为 15 秒
 
-`clusterCron` will mark the node as `PFAIL` state if the current node can't receive the `PONG` message for the target node in `cluster-node-timeout` millseconds, default value is 15s
-
-      /* Compute the delay of the PONG. Note that if we already received
-       * the PONG, then node->ping_sent is zero, so can't reach this code at all. */
+      /* 计算 PONG 的延时, 注意如果我们已经收到了 PONG 消息, 则 node->ping_sent 会被置为 0, 所以代码进不到这里 */
         delay = now - node->ping_sent;
 
     if (delay > server.cluster_node_timeout) {
-        /* Timeout reached. Set the node as possibly failing if it is
-         * not already in this state. */
+        /* 达到超时条件, 如果这个节点不在 PFAIL 状态, 则把这个节点置于 PFAIL 状态 */
         if (!(node->flags & (CLUSTER_NODE_PFAIL|CLUSTER_NODE_FAIL))) {
             serverLog(LL_DEBUG,"*** NODE %.40s possibly failing",
                 node->name);
@@ -80,55 +76,55 @@ For `master/7001`, `master/7002` and `slave/7003`
 
 ![pfail](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/pfail.png)
 
-`master/7001`, `master/7002` and `slave/7003` will communicate with `master/7000` via [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md) protocol, After `cluster-node-timeout` millseconds they are not able to receive the `PONG` message, each of them will mark `master/7000` as `PFAIL` state
+`master/7001`, `master/7002` 和 `slave/7003` 会通过 [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip_cn.md) 协议进行交流, 在 `cluster-node-timeout` 毫秒之后还收不到某个节点的 `PONG` 消息时, 就会把这个节点置于 PFAIL` 状态
 
 ![pfail2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/pfail2.png)
 
-Every node will has it's own `cluster-node-timeout` configuration, and the time they send `PING` message will various, but if the node `master/7000` really fails, after `timestamp in PING` + `cluster-node-timeout`, majority of node will mark `master/7000` as `PFAIL`
+每一个节点都有自己的 `cluster-node-timeout` 配置, 并且每个节点发送 `PING` 消息的时刻都不相同, 但如果节点 `master/7000` 真的宕机了, 在不同节点的 `PING 时刻` + `cluster-node-timeout` 毫秒之后, 大部分的正常节点都会把 `master/7000` 标记为 `PFAIL` 状态
 
 # FAIL
 
-The `PFAIL` state of the `master/7000` will propagate via the [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md) protocol, whenever a node receive a node with `PFAIL` state, `markNodeAsFailingIfNeeded` will be called
+`master/7000` 的 `PFAIL` 状态会通过 [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip_cn.md) 协议传播, 每当一个节点通过该协议接收到集群中的一个节点处于 `PFAIL` 状态时, `markNodeAsFailingIfNeeded` 这个函数就会被调用
 
-`markNodeAsFailingIfNeeded` will mark the node `master/7000` as `FAIL` state if there're at least `(server.cluster->size / 2) + 1` says the node is in `PFAIL` state, which is 2 in the current cluster
+`markNodeAsFailingIfNeeded` 会在至少有 `(server.cluster->size / 2) + 1` 个节点把对应节点标记成 `PFAIL` 状态时就把这个节点直接置为 `FAIL` 状态, 既在当前集群收到 2 个关于 节点 `master/7000` 的 `PFAIL` 状态, 就把这个节点设置为 `FAIL` 状态
 
     void markNodeAsFailingIfNeeded(clusterNode *node) {
         int failures;
         int needed_quorum = (server.cluster->size / 2) + 1;
 
-        if (!nodeTimedOut(node)) return; /* We can reach it. */
-        if (nodeFailed(node)) return; /* Already FAILing. */
+        if (!nodeTimedOut(node)) return; /* 我自己能和目标节点收发消息 */
+        if (nodeFailed(node)) return; /* 这个节点已经被标记成 FAIL 了 */
 
         failures = clusterNodeFailureReportsCount(node);
-        /* Also count myself as a voter if I'm a master. */
+        /* 如果我自己也是 master, 那么把我自己也计入数目中 */
         if (nodeIsMaster(myself)) failures++;
-        if (failures < needed_quorum) return; /* No weak agreement from masters. */
+        if (failures < needed_quorum) return; /* 把目标节点标记成 PFAIL 的 master 节点还不集群数目的一半, 不操作 */
 
         serverLog(LL_NOTICE,
             "Marking node %.40s as failing (quorum reached).", node->name);
 
-        /* Mark the node as failing. */
+        /* 把目标节点标记成 FAIL */
         node->flags &= ~CLUSTER_NODE_PFAIL;
         node->flags |= CLUSTER_NODE_FAIL;
         node->fail_time = mstime();
 
-        /* Broadcast the failing node name to everybody, forcing all the other
-         * reachable nodes to flag the node as FAIL. */
+        /* 把目标节点被标记成 FAIL 这个信息广播给集群里的所有其他节点,
+         * 让所有能与我自己建立连接的节点都把目标节点标记成 FAIL */
         if (nodeIsMaster(myself)) clusterSendFail(node->name);
         clusterDoBeforeSleep(CLUSTER_TODO_UPDATE_STATE|CLUSTER_TODO_SAVE_CONFIG);
     }
 
-If `master/7001` is the first node that record two `PFAIL` state for node `master/7000`, it will mark it as `FAIL` state and broadcast to all other nodes in the cluster
+如果 `master/7001` 是第一个发现 `master/7000` 有 2 个 `PFAIL` 状态的话, 它会把它标记成 `FAIL` 状态并在集群中广播该条状态信息
 
 ![fail](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/fail.png)
 
 # ELECT
 
-As soon as a node gets 2 `PFAIL` state for node `master/7000`, it marks it as `FAIL` state
+只要一个节点获得了 `master/7000` 的 2 个 `PFAIL` 状态, 那么这个节点就会把 `master/7000` 标记为 `FAIL`
 
 ![elect](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect.png)
 
-And broadcast the `FAIL` state info to all reachable nodes
+并且把 `FAIL` 广播给集群中所有的节点
 
 ![elect2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect2.png)
 
