@@ -92,7 +92,7 @@ Every node will has it's own `cluster-node-timeout` configuration, and the time 
 
 The `PFAIL` state of the `master/7000` will propagate via the [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip.md) protocol, whenever a node receive a node with `PFAIL` state, `markNodeAsFailingIfNeeded` will be called
 
-`markNodeAsFailingIfNeeded` will mark the node `master/7000` as fail state if there're at least `(server.cluster->size / 2) + 1` says the node is in `PFAIL` state, which is 3 in the current cluster
+`markNodeAsFailingIfNeeded` will mark the node `master/7000` as `FAIL` state if there're at least `(server.cluster->size / 2) + 1` says the node is in `PFAIL` state, which is 3 in the current cluster
 
     void markNodeAsFailingIfNeeded(clusterNode *node) {
         int failures;
