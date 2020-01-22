@@ -122,13 +122,15 @@
 
 只要一个节点获得了 `master/7000` 的 2 个 `PFAIL` 状态, 那么这个节点就会把 `master/7000` 标记为 `FAIL`
 
+只有槽数大于 1 的 master 节点的 `PFAIL` 算数
+
 ![elect](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect.png)
 
-并且把 `FAIL` 广播给集群中所有的节点
+并且把这个节点的 `FAIL` 状态广播给集群中所有的节点
 
 ![elect2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect2.png)
 
-Every slave will call `clusterHandleSlaveFailover` in each loop of `clusterCron`
+每一个 slave 在每一次 `clusterCron` 循环中都会调用 `clusterHandleSlaveFailover` 这个函数
 
     void clusterHandleSlaveFailover(void) {
         mstime_t data_age;
@@ -140,37 +142,33 @@ Every slave will call `clusterHandleSlaveFailover` in each loop of `clusterCron`
 
         server.cluster->todo_before_sleep &= ~CLUSTER_TODO_HANDLE_FAILOVER;
 
-        /* Compute the failover timeout (the max time we have to send votes
-         * and wait for replies), and the failover retry time (the time to wait
-         * before trying to get voted again).
-         *
-         * Timeout is MAX(NODE_TIMEOUT*2,2000) milliseconds.
-         * Retry is two times the Timeout.
+        /* 计算 failover 超时 (发送投票消息和等待响应的最大时间)
+         * 和 failover 的重试时间 (再次发起投票请求的时间)
+         * 超时是 MAX(NODE_TIMEOUT*2,2000) 毫秒
+         * 重试时间是 上面的超时 * 2
          */
         auth_timeout = server.cluster_node_timeout*2;
         if (auth_timeout < 2000) auth_timeout = 2000;
         auth_retry_time = auth_timeout*2;
 
-        /* Pre conditions to run the function, that must be met both in case
-         * of an automatic or manual failover:
-         * 1) We are a slave.
-         * 2) Our master is flagged as FAIL, or this is a manual failover.
-         * 3) We don't have the no failover configuration set, and this is
-         *    not a manual failover.
-         * 4) It is serving slots. */
+        /* 不论是手动的 failover 还是自动的 failover
+         * 运行该函数需要满足下面所有的先决条件
+         * 1) 我自己本身是 slave
+         * 2) 我的 master 已经被标记成 FAIL 状态, 或者这次是一个手动的 failover
+         * 3) 设置里没有配置不允许 failover 的选项, 并且本次不是一个手动的 failover
+         * 4）当前节点没有服务任何一个槽
         if (nodeIsMaster(myself) ||
             myself->slaveof == NULL ||
             (!nodeFailed(myself->slaveof) && !manual_failover) ||
             (server.cluster_slave_no_failover && !manual_failover) ||
             myself->slaveof->numslots == 0)
         {
-            /* There are no reasons to failover, so we set the reason why we
-             * are returning without failing over to NONE. */
+            /* 没有必要进行 failover, 我们设置了为什么不能进行 failover 的原因并返回 */
             server.cluster->cant_failover_reason = CLUSTER_CANT_FAILOVER_NONE;
             return;
         }
         /* ... */
-        /* Ask for votes if needed. */
+        /* 必要的时候发起新的一轮投票 */
         if (server.cluster->failover_auth_sent == 0) {
             server.cluster->currentEpoch++;
             server.cluster->failover_auth_epoch = server.cluster->currentEpoch;
@@ -181,17 +179,17 @@ Every slave will call `clusterHandleSlaveFailover` in each loop of `clusterCron`
             clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|
                                  CLUSTER_TODO_UPDATE_STATE|
                                  CLUSTER_TODO_FSYNC_CONFIG);
-            return; /* Wait for replies. */
+            return; /* 等待回复 */
         }
 
-        /* Check if we reached the quorum. */
+        /* 查看是否有法定的投票数投了我 */
         if (server.cluster->failover_auth_count >= needed_quorum) {
-            /* We have the quorum, we can finally failover the master. */
+            /* 我们有达到执行的票数, 可以进行 failover */
 
             serverLog(LL_WARNING,
                 "Failover election won: I'm the new master.");
 
-            /* Update my configEpoch to the epoch of the election. */
+            /* 把自己的 configEpoch 设置为选举的 epoch */
             if (myself->configEpoch < server.cluster->failover_auth_epoch) {
                 myself->configEpoch = server.cluster->failover_auth_epoch;
                 serverLog(LL_WARNING,
@@ -199,20 +197,20 @@ Every slave will call `clusterHandleSlaveFailover` in each loop of `clusterCron`
                     (unsigned long long) myself->configEpoch);
             }
 
-            /* Take responsibility for the cluster slots. */
+            /* 执行替换 master 槽等一系列的操作 */
             clusterFailoverReplaceYourMaster();
         } else {
             clusterLogCantFailover(CLUSTER_CANT_FAILOVER_WAITING_VOTES);
         }
     }
 
-If our master is in `FAIL` state, our epoch number will be added, and we will ask every other nodes to vote us, but only master serving at least one slot has the right to vote
+如果我们的 master 在 `FAIL` 状态下, 我们的 epoch 会加一, 并且要求所有其他的至少服务一个槽的 master 节点对我自己进行投票
 
 ![elect3](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect3.png)
 
-And the master will vote only if meet the following requirements
+并且 master 只会在符合以下条件时进行投票
 
-    /* Vote for the node asking for our vote if there are the conditions. */
+    /* 对于要求给他进行投票的节点, 符合以下条时进行投票 */
     void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
         clusterNode *master = node->slaveof;
         uint64_t requestCurrentEpoch = ntohu64(request->currentEpoch);
@@ -221,16 +219,12 @@ And the master will vote only if meet the following requirements
         int force_ack = request->mflags[0] & CLUSTERMSG_FLAG0_FORCEACK;
         int j;
 
-        /* IF we are not a master serving at least 1 slot, we don't have the
-         * right to vote, as the cluster size in Redis Cluster is the number
-         * of masters serving at least one slot, and quorum is the cluster
-         * size + 1 */
+        /* 如果我们不是一个至少服务一个槽的节点, 我们是没有权利进行投票的
+         * 因为集群的大小为 至少服务一个槽的节点的数量, 并且合法投票数的阈值是 集群大小 + 1 */
         if (nodeIsSlave(myself) || myself->numslots == 0) return;
 
-        /* Request epoch must be >= our currentEpoch.
-         * Note that it is impossible for it to actually be greater since
-         * our currentEpoch was updated as a side effect of receiving this
-         * request, if the request epoch was greater. */
+        /* 要求投票的 epoch 数必须大于等于我们自身的 epoch 数
+         * 因为只要请求的 epoch 数比我们自身的 epoch 数大, 我们自己的 epoch 数就会置为请求的 epoch 数, 所以在请求之后实际上请求的 epoch 是不会大于我们自身的 epoch 的 */
         if (requestCurrentEpoch < server.cluster->currentEpoch) {
             serverLog(LL_WARNING,
                 "Failover auth denied to %.40s: reqEpoch (%llu) < curEpoch(%llu)",
@@ -240,7 +234,7 @@ And the master will vote only if meet the following requirements
             return;
         }
 
-        /* I already voted for this epoch? Return ASAP. */
+        /* 我已经对这一轮 epoch 进行过投票了 ? 马上返回 */
         if (server.cluster->lastVoteEpoch == server.cluster->currentEpoch) {
             serverLog(LL_WARNING,
                     "Failover auth denied to %.40s: already voted for epoch %llu",
@@ -249,9 +243,9 @@ And the master will vote only if meet the following requirements
             return;
         }
 
-        /* Node must be a slave and its master down.
-         * The master can be non failing if the request is flagged
-         * with CLUSTERMSG_FLAG0_FORCEACK (manual failover). */
+        /* 请求投票的节点必须是一个 slave 并且它的 master 当前处于无法连接的状态
+         * 但是请求带有 CLUSTERMSG_FLAG0_FORCEACK 标记时可以例外
+         * /
         if (nodeIsMaster(node) || master == NULL ||
             (!nodeFailed(master) && !force_ack))
         {
@@ -271,9 +265,8 @@ And the master will vote only if meet the following requirements
             return;
         }
 
-        /* We did not voted for a slave about this master for two
-         * times the node timeout. This is not strictly needed for correctness
-         * of the algorithm but makes the base case more linear. */
+        /* 我们在 cluster_node_timeout * 2 的延时内是不会对对应节点的 slave 进行投票的
+         * 这不是为了算法的准确性而做的设计, 而是为了表现得更平稳一些 */
         if (mstime() - node->slaveof->voted_time < server.cluster_node_timeout * 2)
         {
             serverLog(LL_WARNING,
@@ -285,9 +278,7 @@ And the master will vote only if meet the following requirements
             return;
         }
 
-        /* The slave requesting the vote must have a configEpoch for the claimed
-         * slots that is >= the one of the masters currently serving the same
-         * slots in the current configuration. */
+        /* 要求投票的 slave 必须拥有 >= 他自己的 master 的槽数(在当前节点的 epoch) */
         for (j = 0; j < CLUSTER_SLOTS; j++) {
             if (bitmapTestBit(claimed_slots, j) == 0) continue;
             if (server.cluster->slots[j] == NULL ||
@@ -295,9 +286,8 @@ And the master will vote only if meet the following requirements
             {
                 continue;
             }
-            /* If we reached this point we found a slot that in our current slots
-             * is served by a master with a greater configEpoch than the one claimed
-             * by the slave requesting our vote. Refuse to vote for this slave. */
+            /* 进到这里, 我们发现了至少一个我们在服务的槽, 同时也在被要求投票的节点的 master 服务着
+             * 并且这个 master 的 epoch 大于请求的 epoch, 我们需要拒绝本次投票 */
             serverLog(LL_WARNING,
                     "Failover auth denied to %.40s: "
                     "slot %d epoch (%llu) > reqEpoch (%llu)",
@@ -307,7 +297,7 @@ And the master will vote only if meet the following requirements
             return;
         }
 
-        /* We can vote for this slave. */
+        /* 我们可以对这个 slave 进行投票 */
         server.cluster->lastVoteEpoch = server.cluster->currentEpoch;
         node->slaveof->voted_time = mstime();
         clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|CLUSTER_TODO_FSYNC_CONFIG);
@@ -316,12 +306,12 @@ And the master will vote only if meet the following requirements
             node->name, (unsigned long long) server.cluster->currentEpoch);
     }
 
-Once the slave gets majority of votes, it will become master
+只要这个 slave 获得了集群中超过一半的有效投票, 那么它就会变成 master
 
 ![elect4](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect4.png)
 
-And because the master now has a higher epoch number, if the old master rejoin the cluster, it will follows the configuration of those with higher epoch number, and becomes the slave of the current master
+并且因为这个 master 当前有更高的 epoch 数, 如果之前宕机的 master 此时重新恢复并加入集群, 他会根据更高的 epoch 的节点的配置更新, 并且变成新的 master 的 slave
 
 ![elect5](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect5.png)
 
-The situations in the real world is more complicated, such as multiply slaves and partition, you need to search for more information such as [raft paper](https://raft.github.io/raft.pdf)
+真实世界的情况会更加复杂, 比如多个从节点的投票竞争, 或者网络分区, 课可以查阅更多资料了解相关信息, 比如 [raft 论文](https://raft.github.io/raft.pdf)

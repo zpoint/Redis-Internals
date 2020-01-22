@@ -126,6 +126,8 @@ If `master/7001` is the first node that record two `PFAIL` state for node `maste
 
 As soon as a node gets 2 `PFAIL` state for node `master/7000`, it marks it as `FAIL` state
 
+The votes of `PFAIL` state will only valid for thoese node serves at least 1 slot
+
 ![elect](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/elect.png)
 
 And broadcast the `FAIL` state info to all reachable nodes
