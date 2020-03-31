@@ -36,7 +36,7 @@
 - [x] [cluster](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster_cn.md)
 	- [x] [reshard](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/cluster_cn.md#reshard)
 	- [x] [gossip](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/gossip/gossip_cn.md)
-	- [x] [failover](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/failover.md)
+	- [x] [failover](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/cluster/failover/failover_cn.md)
 - replica
 - redlock
 - protocol
