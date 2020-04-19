@@ -30,8 +30,7 @@ git reset --hard 388efbf8b661ce2e5db447e994bf3c3caf6403c6
  - [x] [streams](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/streams_cn.md)
  	- [x] [rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax_cn.md)
  	- [x] [listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack_cn.md)
-
-- geohash
+ - [ ] [geohash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/geohash.md)
 
 # 服务
 - [x] [持久化](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/persistence_cn.md)
