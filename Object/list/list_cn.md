@@ -48,10 +48,13 @@
 
 ## OBJ_ENCODING_QUICKLIST
 
-    127.0.0.1:6379> lpush lst 123 456
-    (integer) 2
-    127.0.0.1:6379> object encoding lst
-    "quicklist"
+```shell script
+127.0.0.1:6379> lpush lst 123 456
+(integer) 2
+127.0.0.1:6379> object encoding lst
+"quicklist"
+
+```
 
 ![example](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/example.png)
 
@@ -137,15 +140,21 @@
 
 我在配置文件做了如下两行的更改
 
-	list-max-ziplist-size 3
-    list-compress-depth 0
+```c
+list-max-ziplist-size 3
+list-compress-depth 0
+
+```
 
 在 redis 客户端中
 
-    127.0.0.1:6379> del lst
-    (integer) 1
-    127.0.0.1:6379> lpush lst val1 123 456
-    (integer) 3
+```shell script
+127.0.0.1:6379> del lst
+(integer) 1
+127.0.0.1:6379> lpush lst val1 123 456
+(integer) 3
+
+```
 
 ![max_size_1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/max_size_1.png)
 
@@ -153,8 +162,11 @@
 
 如果我们再进行一次插入
 
-    127.0.0.1:6379> lpush lst 789
-    (integer) 4
+```shell script
+127.0.0.1:6379> lpush lst 789
+(integer) 4
+
+```
 
 因为第一个节点中的元素数量已经大于等于 `fill` 中的值了, 一个新的节点会被创建
 
@@ -166,59 +178,74 @@
 
 这是针对 **quicklistNode** 的压缩函数
 
-	/* redis/src/quicklist.c */
-    REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
-    #ifdef REDIS_TEST
-        node->attempted_compress = 1;
-    #endif
+```c
+/* redis/src/quicklist.c */
+REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
+#ifdef REDIS_TEST
+    node->attempted_compress = 1;
+#endif
 
-        /* 如果被压缩的部分字节数太少, 则不进行压缩 */
-        /* 这个值默认是 48 bytes  */
-        if (node->sz < MIN_COMPRESS_BYTES)
-            return 0;
-        /* 为压缩后的结果分配空间, 新分配的空间是原本未压缩之前的长度 + lzf 结构头部的长度 */
-        quicklistLZF *lzf = zmalloc(sizeof(*lzf) + node->sz);
+    /* 如果被压缩的部分字节数太少, 则不进行压缩 */
+    /* 这个值默认是 48 bytes  */
+    if (node->sz < MIN_COMPRESS_BYTES)
+        return 0;
+    /* 为压缩后的结果分配空间, 新分配的空间是原本未压缩之前的长度 + lzf 结构头部的长度 */
+    quicklistLZF *lzf = zmalloc(sizeof(*lzf) + node->sz);
 
-        /* 如果压缩失败或者压缩并未减少一定比例的空间, 则取消压缩 */
-        if (((lzf->sz = lzf_compress(node->zl, node->sz, lzf->compressed,
-                                     node->sz)) == 0) ||
-            lzf->sz + MIN_COMPRESS_IMPROVE >= node->sz) {
-            /* 如果传入的值无法压缩, lzf_compress 拒绝压缩 */
-            zfree(lzf);
-            return 0;
-        }
-        /* 成功的进行压缩, 调整之前分配的内存块的大小, 让他适配新的压缩后的大小, 避免浪费空间 */
-        lzf = zrealloc(lzf, sizeof(*lzf) + lzf->sz);
-        /* 释放原本的 ziplist */
-        free(node->zl);
-        /* 把压缩完后的数组地址存储到 zl 中 */
-        node->zl = (unsigned char *)lzf;
-        /* 标记上这是一个需要进行压缩的 ziplist */
-        node->encoding = QUICKLIST_NODE_ENCODING_LZF;
-        /* 标记上这个 ziplist 当前已经被压缩了 */
-        node->recompress = 0;
-        return 1;
+    /* 如果压缩失败或者压缩并未减少一定比例的空间, 则取消压缩 */
+    if (((lzf->sz = lzf_compress(node->zl, node->sz, lzf->compressed,
+                                 node->sz)) == 0) ||
+        lzf->sz + MIN_COMPRESS_IMPROVE >= node->sz) {
+        /* 如果传入的值无法压缩, lzf_compress 拒绝压缩 */
+        zfree(lzf);
+        return 0;
     }
+    /* 成功的进行压缩, 调整之前分配的内存块的大小, 让他适配新的压缩后的大小, 避免浪费空间 */
+    lzf = zrealloc(lzf, sizeof(*lzf) + lzf->sz);
+    /* 释放原本的 ziplist */
+    free(node->zl);
+    /* 把压缩完后的数组地址存储到 zl 中 */
+    node->zl = (unsigned char *)lzf;
+    /* 标记上这是一个需要进行压缩的 ziplist */
+    node->encoding = QUICKLIST_NODE_ENCODING_LZF;
+    /* 标记上这个 ziplist 当前已经被压缩了 */
+    node->recompress = 0;
+    return 1;
+}
+
+```
 
 我在配置文件做了如下两行的更改
 
-	list-max-ziplist-size 4
-    list-compress-depth 1
+```c
+list-max-ziplist-size 4
+list-compress-depth 1
+
+```
 
 并且为了简短的进行演示更改了这两行源代码
 
-	#define MIN_COMPRESS_BYTES 1
-    #define MIN_COMPRESS_IMPROVE 0
+```c
+#define MIN_COMPRESS_BYTES 1
+#define MIN_COMPRESS_IMPROVE 0
+
+```
 
 在 redis 客户端中
 
-    127.0.0.1:6379> lpush lst aa1 aa2 aa3 aa4 bb1 bb2 bb3 bb4
-    (integer) 8
+```shell script
+127.0.0.1:6379> lpush lst aa1 aa2 aa3 aa4 bb1 bb2 bb3 bb4
+(integer) 8
+
+```
 
 ![compress1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/compress1.png)
 
-    127.0.0.1:6379> lpush lst cc1 cc2 cc3 cc4
-    (integer) 12
+```shell script
+127.0.0.1:6379> lpush lst cc1 cc2 cc3 cc4
+(integer) 12
+
+```
 
 因为 `list-compress-depth` 的值为 1, 两边的第一个 **quicklistNode** 不会被压缩, 第二, 三, 四个之后的在插入之后都会检查下是否需要进行压缩
 
@@ -237,20 +264,29 @@
 
 我们来插入到中间部分试试看
 
-	list-max-ziplist-size 3
-    list-compress-depth 0
+```c
+list-max-ziplist-size 3
+list-compress-depth 0
+
+```
 
 在 redis 客户端中
 
-    127.0.0.1:6379> del lst
-    (integer) 1
-    127.0.0.1:6379> lpush lst aa1 aa2 aa3 bb1 bb2 bb3 cc1 cc2 cc3
-    (integer) 8
+```shell script
+127.0.0.1:6379> del lst
+(integer) 1
+127.0.0.1:6379> lpush lst aa1 aa2 aa3 bb1 bb2 bb3 cc1 cc2 cc3
+(integer) 8
+
+```
 
 ![insert_middle](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/insert_middle.png)
 
-    127.0.0.1:6379> linsert lst after bb2 123
-    (integer) 10
+```shell script
+127.0.0.1:6379> linsert lst after bb2 123
+(integer) 10
+
+```
 
 因为存储了值 **bb2** 的 **quicklistNode** 是满的了, 这个节点会被拆开
 

@@ -7,7 +7,10 @@
 * [内部实现](#内部实现)
 * [更多资料](#更多资料)
 
+```c
 
+
+```
 
 # 相关位置文件
 * redis/src/rax.h
@@ -21,50 +24,62 @@
 
 # 内部实现
 
+```shell script
 
-    127.0.0.1:6379> xadd mystream * key1 val1
-    "1575180011273-0"
-    127.0.0.1:6379> XGROUP CREATE mystream mygroup1 $
-    OK
+127.0.0.1:6379> xadd mystream * key1 val1
+"1575180011273-0"
+127.0.0.1:6379> XGROUP CREATE mystream mygroup1 $
+OK
+
+```
 
 通常来讲, 一个基数树(前缀树) 看起来如下所示
 
-     * 这是最基本的表示方式:
-     *
-     *              (f) ""
-     *                \
-     *                (o) "f"
-     *                  \
-     *                  (o) "fo"
-     *                    \
-     *                  [t   b] "foo"
-     *                  /     \
-     *         "foot" (e)     (a) "foob"
-     *                /         \
-     *      "foote" (r)         (r) "fooba"
-     *              /             \
-     *    "footer" []             [] "foobar"
-     *
+```c
+ * 这是最基本的表示方式:
+ *
+ *              (f) ""
+ *                \
+ *                (o) "f"
+ *                  \
+ *                  (o) "fo"
+ *                    \
+ *                  [t   b] "foo"
+ *                  /     \
+ *         "foot" (e)     (a) "foob"
+ *                /         \
+ *      "foote" (r)         (r) "fooba"
+ *              /             \
+ *    "footer" []             [] "foobar"
+ *
+
+```
 
 翻译自 `redis/src/rax.h`
 
 > 然而, 当前的代码实现使用了一种非常常见的优化策略, 把只有单个子的节点连续几个节点压缩成一个节点, 这个节点有一个字符串, 不再是只存储单个字符, 上述的结构可以优化成如下结构
 
-     *
-     *                  ["foo"] ""
-     *                     |
-     *                  [t   b] "foo"
-     *                  /     \
-     *        "foot" ("er")    ("ar") "foob"
-     *                 /          \
-     *       "footer" []          [] "foobar"
+```c
+ *
+ *                  ["foo"] ""
+ *                     |
+ *                  [t   b] "foo"
+ *                  /     \
+ *        "foot" ("er")    ("ar") "foob"
+ *                 /          \
+ *       "footer" []          [] "foobar"
+
+```
 
 字符串 `mygroup1` 在 rax 中也是以压缩节点的方式存储的, 可以用如下表示
 
-     *
-     *                  ["mygroup1"] ""
-     *                     |
-     *                    [] "mygroup1"
+```c
+ *
+ *                  ["mygroup1"] ""
+ *                     |
+ *                    [] "mygroup1"
+
+```
 
 第一个节点存储了压缩过的整个字符串 `mygroup1`, 第二个节点是一个空的叶子节点, 他是一个 key 值, 表示到这个节点之前合起来的字符串存储在了当前的 `rax` 结构中
 
@@ -86,19 +101,25 @@
 
 我们再来插入一个 `consumer group` 名称到当前的前缀树中
 
-    127.0.0.1:6379> XGROUP CREATE mystream mygroup2 $
-    OK
+```shell script
+127.0.0.1:6379> XGROUP CREATE mystream mygroup2 $
+OK
+
+```
 
 ![mygroup2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/mygroup2.png)
 
 从上图可知, 第一个节点被裁剪了, 并且它后面插入了一个新的节点, 左下角的节点是原先存在的节点, 右下角的节点也是一个新插入的节点
 
-     *
-     *                  ["mygroup"] ""
-     *                     |
-     *                  [1   2] "mygroup"
-     *                  /     \
-     *      "mygroup1" []     [] "mygroup2"
+```c
+ *
+ *                  ["mygroup"] ""
+ *                     |
+ *                  [1   2] "mygroup"
+ *                  /     \
+ *      "mygroup1" []     [] "mygroup2"
+
+```
 
 中间的节点未被压缩(`iscompr` 这个位没有被设置), data 字段中存储了 `size` 个字符, 在这些字符之后, 同样会存储 `size` 个指向与之前字符一一对应的 `raxNode` 的结构的指针
 

@@ -37,61 +37,76 @@
 
 对于 **intset** 来说总共有三种不同的 encoding, 它表示了 **intset** 中存储的实际内容是如何编码的
 
-    127.0.0.1:6379> sadd set1 100
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 100
+(integer) 1
+
+```
 
 ![sadd1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/sadd1.png)
 
 如果存储的值都是整型, 并且大小都不超过 `int16_t` 这个类型能表示的最大值, 那么这些值就会用 `int16_t` 这个类型来存储, 并且内部是一个数组结构
 
-    127.0.0.1:6379> sadd set1 -3
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 -3
+(integer) 1
+
+```
 
 ![sadd2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/sadd2.png)
 
 我们可以发现这个数组结构内的数值是以升序的顺序排好序的
 
-    127.0.0.1:6379> sadd set1 5
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 5
+(integer) 1
+
+```
 
 ![sadd3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/sadd3.png)
 
-    127.0.0.1:6379> sadd set1 1
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 1
+(integer) 1
+
+```
 
 这是 **intset** 的插入部分的函数
 
+```c
 
-	/* redis/src/intset.c */
-    /* 对于指定 intset 插入一个整型 */
-    intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
-        uint8_t valenc = _intsetValueEncoding(value);
-        uint32_t pos;
-        if (success) *success = 1;
-        /* 在必要的时候升级 encoding, 如果我们需要进行升级, 我们知道这个值要么插在最后 (>0),
-         * 要么插在最前(<0), 因为已经有的类型无法表示这个值, 才需要进行升级 */
-        if (valenc > intrev32ifbe(is->encoding)) {
-            /* 这一步一定会成功, 所以我们不用更改 *success. 的值 */
-            return intsetUpgradeAndAdd(is,value);
-        } else {
-            /* 如果这个值已经在当前的集合中, 就不需要再进行处理了
-             * 在搜索不到这个值的时候, 这个函数会把 "pos" 设置为可以进行插入的位置 */
-            if (intsetSearch(is,value,&pos)) {
-                /* 进行二分查找 */
-                if (success) *success = 0;
-                return is;
-            }
-            /* 扩展 intset 的内存 */
-            is = intsetResize(is,intrev32ifbe(is->length)+1);
-            /* 把所有 pos 开始的到结束字节移动到以 pos+1 开始的位置 */
-            if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
+/* redis/src/intset.c */
+/* 对于指定 intset 插入一个整型 */
+intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
+    uint8_t valenc = _intsetValueEncoding(value);
+    uint32_t pos;
+    if (success) *success = 1;
+    /* 在必要的时候升级 encoding, 如果我们需要进行升级, 我们知道这个值要么插在最后 (>0),
+     * 要么插在最前(<0), 因为已经有的类型无法表示这个值, 才需要进行升级 */
+    if (valenc > intrev32ifbe(is->encoding)) {
+        /* 这一步一定会成功, 所以我们不用更改 *success. 的值 */
+        return intsetUpgradeAndAdd(is,value);
+    } else {
+        /* 如果这个值已经在当前的集合中, 就不需要再进行处理了
+         * 在搜索不到这个值的时候, 这个函数会把 "pos" 设置为可以进行插入的位置 */
+        if (intsetSearch(is,value,&pos)) {
+            /* 进行二分查找 */
+            if (success) *success = 0;
+            return is;
         }
-        /* 把 pos 这个位置设置为指定的值 */
-        _intsetSet(is,pos,value);
-        /* 更改 length */
-        is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
-        return is;
+        /* 扩展 intset 的内存 */
+        is = intsetResize(is,intrev32ifbe(is->length)+1);
+        /* 把所有 pos 开始的到结束字节移动到以 pos+1 开始的位置 */
+        if (pos < intrev32ifbe(is->length)) intsetMoveTail(is,pos,pos+1);
     }
+    /* 把 pos 这个位置设置为指定的值 */
+    _intsetSet(is,pos,value);
+    /* 更改 length */
+    is->length = intrev32ifbe(intrev32ifbe(is->length)+1);
+    return is;
+}
+
+```
 
 首先, `intsetSearch`  会对排好序的数组进行二分查找, 如果这个值已经在里面了, 就直接返回, 不然的话重新申请 **intset** 的内存空间
 
@@ -111,28 +126,40 @@
 
 这是 **intset** 中不同的 `encoding` 的定义
 
-    #define INTSET_ENC_INT16 (sizeof(int16_t))
-    #define INTSET_ENC_INT32 (sizeof(int32_t))
-    #define INTSET_ENC_INT64 (sizeof(int64_t))
+```c
+#define INTSET_ENC_INT16 (sizeof(int16_t))
+#define INTSET_ENC_INT32 (sizeof(int32_t))
+#define INTSET_ENC_INT64 (sizeof(int64_t))
+
+```
 
 首先我们初始化一个 `set`
 
-    127.0.0.1:6379> del set1
-    (integer) 1
-    127.0.0.1:6379> sadd set1 100 -1 5
-    (integer) 3
+```shell script
+127.0.0.1:6379> del set1
+(integer) 1
+127.0.0.1:6379> sadd set1 100 -1 5
+(integer) 3
+
+```
 
 ![before_upgrade](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/before_upgrade.png)
 
 如果你插入了一人无法用 `int16_t` 这个类型表示的值, 那么整个数组都会被升级为 `int32_t`
 
-    127.0.0.1:6379> sadd set1 32768
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 32768
+(integer) 1
+
+```
 
 ![after_upgrade](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/after_upgrade.png)
 
-    127.0.0.1:6379> srem set1 32768
-    (integer) 1
+```shell script
+127.0.0.1:6379> srem set1 32768
+(integer) 1
+
+```
 
 对于 **intset** 只存在升级, 不存在降级
 
@@ -140,8 +167,11 @@
 
 ### INTSET_ENC_INT64
 
-    127.0.0.1:6379> sadd set1 2147483648
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 2147483648
+(integer) 1
+
+```
 
 ![after_upgrade_64](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/after_upgrade_64.png)
 
@@ -151,61 +181,79 @@
 
 这是 `set` 对象的 sadd 部分的函数
 
-	/* redis/src/t_set.c */
-    else if (subject->encoding == OBJ_ENCODING_INTSET) {
-        if (isSdsRepresentableAsLongLong(value,&llval) == C_OK) {
-            uint8_t success = 0;
-            subject->ptr = intsetAdd(subject->ptr,llval,&success);
-            if (success) {
-                /* 如果当前的 intset 含有太多的元素, 把它转换为一个通用的 set(哈希表存储) */
-                if (intsetLen(subject->ptr) > server.set_max_intset_entries)
-                    setTypeConvert(subject,OBJ_ENCODING_HT);
-                return 1;
-            }
-        } else {
-            /* 这个值无法用整型表示, 把它转换为一个通用的 set(哈希表存储) */
-            setTypeConvert(subject,OBJ_ENCODING_HT);
-
-            /* 这个 set 之前是一个 intset, 但是当前插入的值无法用整型表示
-             * 所以用 dictAdd 来处理这个值 */
-            serverAssert(dictAdd(subject->ptr,sdsdup(value),NULL) == DICT_OK);
+```c
+/* redis/src/t_set.c */
+else if (subject->encoding == OBJ_ENCODING_INTSET) {
+    if (isSdsRepresentableAsLongLong(value,&llval) == C_OK) {
+        uint8_t success = 0;
+        subject->ptr = intsetAdd(subject->ptr,llval,&success);
+        if (success) {
+            /* 如果当前的 intset 含有太多的元素, 把它转换为一个通用的 set(哈希表存储) */
+            if (intsetLen(subject->ptr) > server.set_max_intset_entries)
+                setTypeConvert(subject,OBJ_ENCODING_HT);
             return 1;
         }
+    } else {
+        /* 这个值无法用整型表示, 把它转换为一个通用的 set(哈希表存储) */
+        setTypeConvert(subject,OBJ_ENCODING_HT);
+
+        /* 这个 set 之前是一个 intset, 但是当前插入的值无法用整型表示
+         * 所以用 dictAdd 来处理这个值 */
+        serverAssert(dictAdd(subject->ptr,sdsdup(value),NULL) == DICT_OK);
+        return 1;
     }
+}
+
+```
 
 我们从上面的代码可以看出, 如果这个集合的 encoding 是 `OBJ_ENCODING_INTSET`, 并且新插入的值可以用 `long long` 这个类型来表示, 那么它会被前面介绍过的方式插入这个 **intset**, 如果这个值无法用 `long long` 表示(或者它根本不是一个整型), 或者当前的  **intset** 的长度已经超过了 `set_max_intset_entries`(你可以在配置文件里位置这个值, 默认值是 512), 当前的 **intset** 会被转换成一个 [hash 表](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#OBJ_ENCODING_HT)
 
 为了更方便的进行解释说明, 我在我的配置文件里更改了如下这行
 
-	set-max-intset-entries 3
+```c
+set-max-intset-entries 3
+
+```
 
 并且初始化了一个 `set`
 
-    127.0.0.1:6379> del set1
-    (integer) 1
-    127.0.0.1:6379> sadd set1 100 -1 5
-    (integer) 3
+```shell script
+127.0.0.1:6379> del set1
+(integer) 1
+127.0.0.1:6379> sadd set1 100 -1 5
+(integer) 3
+
+```
 
 ![before_upgrade](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/before_upgrade.png)
 
-    127.0.0.1:6379> sadd set1 3
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 3
+(integer) 1
+
+```
 
 因为 **intset** 的长度超过了 `set-max-intset-entries`, 它 会被转换成一张 [hash 表](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT)
 
 ![hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/hash.png)
 
-    127.0.0.1:6379> del set1
-    (integer) 1
-    127.0.0.1:6379> sadd set1 100
-    (integer) 1
+```shell script
+127.0.0.1:6379> del set1
+(integer) 1
+127.0.0.1:6379> sadd set1 100
+(integer) 1
+
+```
 
 ![before_converted](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/before_converted.png)
 
 或者你插入了一个无法用整型表示的值
 
-    127.0.0.1:6379> sadd set1 abc
-    (integer) 1
+```shell script
+127.0.0.1:6379> sadd set1 abc
+(integer) 1
+
+```
 
 ![after_converted](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/set/after_converted.png)
 
@@ -221,19 +269,22 @@
 >
 > 我们对于当前输入的集合, 先计算一遍哪一个算法更优
 
-    if (op == SET_OP_DIFF && sets[0]) {
-        long long algo_one_work = 0, algo_two_work = 0;
+```c
+if (op == SET_OP_DIFF && sets[0]) {
+    long long algo_one_work = 0, algo_two_work = 0;
 
-        for (j = 0; j < setnum; j++) {
-            if (sets[j] == NULL) continue;
+    for (j = 0; j < setnum; j++) {
+        if (sets[j] == NULL) continue;
 
-            algo_one_work += setTypeSize(sets[0]);
-            algo_two_work += setTypeSize(sets[j]);
-        }
-        /* 通常情况下算法 1 有更优的常数时间复杂度, 并且做更少的比较,
-         * 所以同样情况下给算法 1 更高的优先级 */
-        algo_one_work /= 2;
-        diff_algo = (algo_one_work <= algo_two_work) ? 1 : 2;
+        algo_one_work += setTypeSize(sets[0]);
+        algo_two_work += setTypeSize(sets[j]);
+    }
+    /* 通常情况下算法 1 有更优的常数时间复杂度, 并且做更少的比较,
+     * 所以同样情况下给算法 1 更高的优先级 */
+    algo_one_work /= 2;
+    diff_algo = (algo_one_work <= algo_two_work) ? 1 : 2;
+
+```
 
 ## 算法 1
 

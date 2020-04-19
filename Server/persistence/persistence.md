@@ -33,24 +33,30 @@ If we set `appendonly yes` in `redis.conf`
 
 And in command line
 
-    127.0.0.1:6379> set key1 val1
-    OK
+```shell script
+127.0.0.1:6379> set key1 val1
+OK
+
+```
 
 And we inspect the `appendonly` file
 
-    cat appendonly.aof
-    *2
-    $6
-    SELECT
-    $1
-    0
-    *3
-    $3
-    set
-    $4
-    key1
-    $4
-    val1
+```c
+cat appendonly.aof
+*2
+$6
+SELECT
+$1
+0
+*3
+$3
+set
+$4
+key1
+$4
+val1
+
+```
 
 We can find that the `aof` file stores commands one by one
 
@@ -76,23 +82,26 @@ If we keep appending command to the tail of the `AOF` file, it's a matter of tim
 
 There's another strategy called `AOF rewrite` to prevent this from happening
 
-	int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
-    	/* ... */
-        /* Trigger an AOF rewrite if needed. */
-        if (server.aof_state == AOF_ON &&
-            server.rdb_child_pid == -1 &&
-            server.aof_child_pid == -1 &&
-            server.aof_rewrite_perc &&
-            server.aof_current_size > server.aof_rewrite_min_size)
-        {
-            long long base = server.aof_rewrite_base_size ?
-                server.aof_rewrite_base_size : 1;
-            long long growth = (server.aof_current_size*100/base) - 100;
-            if (growth >= server.aof_rewrite_perc) {
-                serverLog(LL_NOTICE,"Starting automatic rewriting of AOF on %lld%% growth",growth);
-                rewriteAppendOnlyFileBackground();
-            }
+```c
+int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+	/* ... */
+    /* Trigger an AOF rewrite if needed. */
+    if (server.aof_state == AOF_ON &&
+        server.rdb_child_pid == -1 &&
+        server.aof_child_pid == -1 &&
+        server.aof_rewrite_perc &&
+        server.aof_current_size > server.aof_rewrite_min_size)
+    {
+        long long base = server.aof_rewrite_base_size ?
+            server.aof_rewrite_base_size : 1;
+        long long growth = (server.aof_current_size*100/base) - 100;
+        if (growth >= server.aof_rewrite_perc) {
+            serverLog(LL_NOTICE,"Starting automatic rewriting of AOF on %lld%% growth",growth);
+            rewriteAppendOnlyFileBackground();
         }
+    }
+
+```
 
 `aof_rewrite_perc` is configured in the configure file, it's the growth rate that will trigger the background `AOF rewrite` automatically
 
@@ -102,82 +111,91 @@ There's another strategy called `AOF rewrite` to prevent this from happening
 
 redis server will call `propagate` for every command, `propagate` will call `feedAppendOnlyFile`, `feedAppendOnlyFile` will do some pre process(translate EXPIRE/PEXPIRE/EXPIREAT into PEXPIREAT) and save the command as the aformentioned format to `server.aof_buf`
 
-	void call(client *c, int flags)
-    {
-        /* ... */
-        if (propagate_flags != PROPAGATE_NONE && !(c->cmd->flags & CMD_MODULE))
-            propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
-    }
+```c
+void call(client *c, int flags)
+{
+    /* ... */
+    if (propagate_flags != PROPAGATE_NONE && !(c->cmd->flags & CMD_MODULE))
+        propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+}
 
-    void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc, int flags)
-    {
-        if (server.aof_state != AOF_OFF && flags & PROPAGATE_AOF)
-            feedAppendOnlyFile(cmd,dbid,argv,argc);
-        if (flags & PROPAGATE_REPL)
-            replicationFeedSlaves(server.slaves,dbid,argv,argc);
-    }
+void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc, int flags)
+{
+    if (server.aof_state != AOF_OFF && flags & PROPAGATE_AOF)
+        feedAppendOnlyFile(cmd,dbid,argv,argc);
+    if (flags & PROPAGATE_REPL)
+        replicationFeedSlaves(server.slaves,dbid,argv,argc);
+}
 
-    void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int argc) {
-        /* ... */
-        if (server.aof_state == AOF_ON)
-            server.aof_buf = sdscatlen(server.aof_buf,buf,sdslen(buf));
-        sdsfree(buf);
-    }
+void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int argc) {
+    /* ... */
+    if (server.aof_state == AOF_ON)
+        server.aof_buf = sdscatlen(server.aof_buf,buf,sdslen(buf));
+    sdsfree(buf);
+}
+
+```
 
 `beforeSleep` will be called every time redis is entering the main loop of the event driven library, and before to sleep for ready file descriptors
 
-    void beforeSleep(struct aeEventLoop *eventLoop) {
-        /* ... */
-        /* Write the AOF buffer on disk */
-        flushAppendOnlyFile(0);
-        /* ... */
-    }
+```c
+void beforeSleep(struct aeEventLoop *eventLoop) {
+    /* ... */
+    /* Write the AOF buffer on disk */
+    flushAppendOnlyFile(0);
+    /* ... */
+}
 
+
+```
 
 ## policy
 
-    void flushAppendOnlyFile(int force) {
+```c
+void flushAppendOnlyFile(int force) {
+	/* ... */
+
+    if (server.aof_fsync == AOF_FSYNC_EVERYSEC)
+        sync_in_progress = aofFsyncInProgress();
+
+    if (server.aof_fsync == AOF_FSYNC_EVERYSEC && !force) {
     	/* ... */
-
-        if (server.aof_fsync == AOF_FSYNC_EVERYSEC)
-            sync_in_progress = aofFsyncInProgress();
-
-        if (server.aof_fsync == AOF_FSYNC_EVERYSEC && !force) {
-        	/* ... */
-            /* return depends on situation */
-        }
-		/* aofWrite calls the system call 'write' */
-        latencyStartMonitor(latency);
-        nwritten = aofWrite(server.aof_fd,server.aof_buf,sdslen(server.aof_buf));
-        latencyEndMonitor(latency);
-
-    try_fsync:
-        /* Don't fsync if no-appendfsync-on-rewrite is set to yes and there are
-         * children doing I/O in the background. */
-        if (server.aof_no_fsync_on_rewrite &&
-            (server.aof_child_pid != -1 || server.rdb_child_pid != -1))
-                return;
-
-        /* Perform the fsync if needed. */
-        if (server.aof_fsync == AOF_FSYNC_ALWAYS) {
-            /* redis_fsync is defined as fdatasync() for Linux in order to avoid
-             * flushing metadata. */
-            latencyStartMonitor(latency);
-            redis_fsync(server.aof_fd); /* Let's try to get this data on the disk */
-            latencyEndMonitor(latency);
-            latencyAddSampleIfNeeded("aof-fsync-always",latency);
-            server.aof_fsync_offset = server.aof_current_size;
-            server.aof_last_fsync = server.unixtime;
-        } else if ((server.aof_fsync == AOF_FSYNC_EVERYSEC &&
-                    server.unixtime > server.aof_last_fsync)) {
-            if (!sync_in_progress) {
-                aof_background_fsync(server.aof_fd);
-                server.aof_fsync_offset = server.aof_current_size;
-            }
-            server.aof_last_fsync = server.unixtime;
-        }
+        /* return depends on situation */
     }
+	/* aofWrite calls the system call 'write' */
+    latencyStartMonitor(latency);
+    nwritten = aofWrite(server.aof_fd,server.aof_buf,sdslen(server.aof_buf));
+    latencyEndMonitor(latency);
 
+try_fsync:
+    /* Don't fsync if no-appendfsync-on-rewrite is set to yes and there are
+     * children doing I/O in the background. */
+    if (server.aof_no_fsync_on_rewrite &&
+        (server.aof_child_pid != -1 || server.rdb_child_pid != -1))
+            return;
+
+    /* Perform the fsync if needed. */
+    if (server.aof_fsync == AOF_FSYNC_ALWAYS) {
+        /* redis_fsync is defined as fdatasync() for Linux in order to avoid
+         * flushing metadata. */
+        latencyStartMonitor(latency);
+        redis_fsync(server.aof_fd); /* Let's try to get this data on the disk */
+        latencyEndMonitor(latency);
+        latencyAddSampleIfNeeded("aof-fsync-always",latency);
+        server.aof_fsync_offset = server.aof_current_size;
+        server.aof_last_fsync = server.unixtime;
+    } else if ((server.aof_fsync == AOF_FSYNC_EVERYSEC &&
+                server.unixtime > server.aof_last_fsync)) {
+        if (!sync_in_progress) {
+            aof_background_fsync(server.aof_fd);
+            server.aof_fsync_offset = server.aof_current_size;
+        }
+        server.aof_last_fsync = server.unixtime;
+    }
+}
+
+
+```
 
 ![aof_buffer](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/aof_buffer.png)
 
@@ -205,35 +223,41 @@ If we set `appendonly no` in `redis.conf`
 
 And in command line
 
-    127.0.0.1:6379> set key1 val1
-    OK
+```shell script
+127.0.0.1:6379> set key1 val1
+OK
+
+```
 
 We start `redis-server` and check the rdb file
 
-	% od -A d -t cu1 -c dump.rdb
-    0000000    R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
-               82  69  68  73  83  48  48  48  57 250   9 114 101 100 105 115
-               R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
-    0000016    -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
-               45 118 101 114  11  57  57  57  46  57  57  57  46  57  57  57
-               -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
-    0000032  372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
-              250  10 114 101 100 105 115  45  98 105 116 115 192  64 250   5
-             372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
-    0000048    c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
-               99 116 105 109 101 194 192  68  12  94 250   8 117 115 101 100
-               c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
-    0000064    -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
-               45 109 101 109 194 224  61  15   0 250  12  97 111 102  45 112
-               -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
-    0000080    r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
-              114 101  97 109  98 108 101 192   0 254   0 251   1   0   0   4
-               r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
-    0000096    k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
-              107 101 121  49   4 118  97 108  49 255  10  36  64 113 198  59
-               k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
-    0000112    Y 274
-               89 229
+```c
+% od -A d -t cu1 -c dump.rdb
+0000000    R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
+           82  69  68  73  83  48  48  48  57 250   9 114 101 100 105 115
+           R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
+0000016    -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
+           45 118 101 114  11  57  57  57  46  57  57  57  46  57  57  57
+           -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
+0000032  372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
+          250  10 114 101 100 105 115  45  98 105 116 115 192  64 250   5
+         372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
+0000048    c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
+           99 116 105 109 101 194 192  68  12  94 250   8 117 115 101 100
+           c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
+0000064    -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
+           45 109 101 109 194 224  61  15   0 250  12  97 111 102  45 112
+           -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
+0000080    r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
+          114 101  97 109  98 108 101 192   0 254   0 251   1   0   0   4
+           r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
+0000096    k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
+          107 101 121  49   4 118  97 108  49 255  10  36  64 113 198  59
+           k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
+0000112    Y 274
+           89 229
+
+```
 
 The above content is a rdb file with only one key, it begin with
 
@@ -271,44 +295,50 @@ Next `255` is the `RDB_OPCODE_EOF`(`#define RDB_OPCODE_EOF        255   /* End o
 
 And the final 8 bytes is the RDB checksum value(in little endian)
 
+```c
 
+
+```
 
 ![rdb](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/rdb.png)
 
 ## when will rdb be triggered
 
-	int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
-        if (server.rdb_child_pid != -1 || server.aof_child_pid != -1 ||
-            ldbPendingChildren())
-        {
-            /* ... */
-        } else {
-            /* If there is not a background saving/rewrite in progress check if
-             * we have to save/rewrite now. */
-            for (j = 0; j < server.saveparamslen; j++) {
-                struct saveparam *sp = server.saveparams+j;
-
-                /* Save if we reached the given amount of changes,
-                 * the given amount of seconds, and if the latest bgsave was
-                 * successful or if, in case of an error, at least
-                 * CONFIG_BGSAVE_RETRY_DELAY seconds already elapsed. */
-                if (server.dirty >= sp->changes &&
-                    server.unixtime-server.lastsave > sp->seconds &&
-                    (server.unixtime-server.lastbgsave_try >
-                     CONFIG_BGSAVE_RETRY_DELAY ||
-                     server.lastbgsave_status == C_OK))
-                {
-                    serverLog(LL_NOTICE,"%d changes in %d seconds. Saving...",
-                        sp->changes, (int)sp->seconds);
-                    rdbSaveInfo rsi, *rsiptr;
-                    rsiptr = rdbPopulateSaveInfo(&rsi);
-                    rdbSaveBackground(server.rdb_filename,rsiptr);
-                    break;
-                }
-            }
+```c
+int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+    if (server.rdb_child_pid != -1 || server.aof_child_pid != -1 ||
+        ldbPendingChildren())
+    {
         /* ... */
-    }
+    } else {
+        /* If there is not a background saving/rewrite in progress check if
+         * we have to save/rewrite now. */
+        for (j = 0; j < server.saveparamslen; j++) {
+            struct saveparam *sp = server.saveparams+j;
 
+            /* Save if we reached the given amount of changes,
+             * the given amount of seconds, and if the latest bgsave was
+             * successful or if, in case of an error, at least
+             * CONFIG_BGSAVE_RETRY_DELAY seconds already elapsed. */
+            if (server.dirty >= sp->changes &&
+                server.unixtime-server.lastsave > sp->seconds &&
+                (server.unixtime-server.lastbgsave_try >
+                 CONFIG_BGSAVE_RETRY_DELAY ||
+                 server.lastbgsave_status == C_OK))
+            {
+                serverLog(LL_NOTICE,"%d changes in %d seconds. Saving...",
+                    sp->changes, (int)sp->seconds);
+                rdbSaveInfo rsi, *rsiptr;
+                rsiptr = rdbPopulateSaveInfo(&rsi);
+                rdbSaveBackground(server.rdb_filename,rsiptr);
+                break;
+            }
+        }
+    /* ... */
+}
+
+
+```
 
 ## policy
 
@@ -317,7 +347,10 @@ The following line in configure file means run `rdbSaveBackground`
 
 > after 900 sec (15 min) if at least 1 key changed
 
-	save 900 1
+```c
+save 900 1
+
+```
 
 You can specific several rules, all of them will be stored in the array `server.saveparam`, if the server status matches any of the rule in the array, `rdbSaveBackground` will be triggered in the `serverCron` function
 

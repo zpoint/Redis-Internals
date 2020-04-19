@@ -12,7 +12,10 @@
 	* [string](#string)
 * [更多资料](#更多资料)
 
+```c
 
+
+```
 
 # 相关位置文件
 * redis/src/listpack.c
@@ -26,60 +29,66 @@
 
 算法的基本概念和性能的提升在这篇文章里已经详细的描述了 [Three Optimization Tips for C++](https://www.facebook.com/notes/facebook-engineering/three-optimization-tips-for-c/10151361643253920), 并且最终版被 redis 里的 `redis/src/util.c` 对应文件下的函数所采用并进行改进
 
-    /* P01 是 10, P02 是 10 * 10, P03 是 10 * 10 *10, ... 以此类推
-    uint32_t digits10(uint64_t v) {
-        if (v < P01) return 1;
-        if (v < P02) return 2;
-        if (v < P03) return 3;
-        if (v < P12) {
-            if (v < P08) {
-                if (v < P06) {
-                    if (v < P04) return 4;
-                    return 5 + (v >= P05);
-                }
-                return 7 + (v >= P07);
+```c
+/* P01 是 10, P02 是 10 * 10, P03 是 10 * 10 *10, ... 以此类推
+uint32_t digits10(uint64_t v) {
+    if (v < P01) return 1;
+    if (v < P02) return 2;
+    if (v < P03) return 3;
+    if (v < P12) {
+        if (v < P08) {
+            if (v < P06) {
+                if (v < P04) return 4;
+                return 5 + (v >= P05);
             }
-            if (v < P10) {
-                return 9 + (v >= P09);
-            }
-            return 11 + (v >= P11);
+            return 7 + (v >= P07);
         }
-        return 12 + digits10(v / P12);
+        if (v < P10) {
+            return 9 + (v >= P09);
+        }
+        return 11 + (v >= P11);
     }
+    return 12 + digits10(v / P12);
+}
+
+```
 
 采用的是一种二分搜索的思想来统计在这个 64 bit 值里, 总共有多少个 100 的整数倍
 
 ![digits10](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/digits10.png)
 
-    unsigned u64ToAsciiTable(uint64_t value, char* dst) {
+```c
+unsigned u64ToAsciiTable(uint64_t value, char* dst) {
 
-        static const char digits[201] =
-                "0001020304050607080910111213141516171819"
-                "2021222324252627282930313233343536373839"
-                "4041424344454647484950515253545556575859"
-                "6061626364656667686970717273747576777879"
-                "8081828384858687888990919293949596979899";
+    static const char digits[201] =
+            "0001020304050607080910111213141516171819"
+            "2021222324252627282930313233343536373839"
+            "4041424344454647484950515253545556575859"
+            "6061626364656667686970717273747576777879"
+            "8081828384858687888990919293949596979899";
 
-        uint32_t const length = digits10(value);
-        uint32_t next = length - 1;
-        while (value >= 100) {
-            auto const i = (value % 100) * 2;
-            value /= 100;
-            dst[next] = digits[i + 1];
-            dst[next - 1] = digits[i];
-            next -= 2;
-        }
-
-        // 处理最后的 1-2 位
-        if (value < 10) {
-            dst[next] = '0' + uint32_t(value);
-        } else {
-            auto i = uint32_t(value) * 2;
-            dst[next] = digits[i + 1];
-            dst[next - 1] = digits[i];
-        }
-        return length;
+    uint32_t const length = digits10(value);
+    uint32_t next = length - 1;
+    while (value >= 100) {
+        auto const i = (value % 100) * 2;
+        value /= 100;
+        dst[next] = digits[i + 1];
+        dst[next - 1] = digits[i];
+        next -= 2;
     }
+
+    // 处理最后的 1-2 位
+    if (value < 10) {
+        dst[next] = '0' + uint32_t(value);
+    } else {
+        auto i = uint32_t(value) * 2;
+        dst[next] = digits[i + 1];
+        dst[next - 1] = digits[i];
+    }
+    return length;
+}
+
+```
 
 对于每一个 `% 100` 之后剩余的两位数, 我们在表里进行搜索, 找到对应的值, 他在表里的下标刚好是 `2 * value`
 
@@ -101,13 +110,19 @@
 
 当前, **stream** 对象中使用了 **listpack** 结构进行存储, 我们来创建一个 **stream** 并且看一下内部的真正结构(**stream** 本身也有结构, 并且也使用了其他的数据结构存储数据, 我们当前只关注 **listpack** 的这一部分)
 
-    127.0.0.1:6379> xadd mystream * key1 128
-    "1576291564661-0"
+```shell script
+127.0.0.1:6379> xadd mystream * key1 128
+"1576291564661-0"
+
+```
 
 ![listpack1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack1.png)
 
-    127.0.0.1:6379> xadd mystream * key1 val1
-    "1576291596105-0"
+```shell script
+127.0.0.1:6379> xadd mystream * key1 val1
+"1576291596105-0"
+
+```
 
 ![listpack2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack2.png)
 
@@ -143,21 +158,24 @@
 
 每一个 **back length** 中的第一个 bit 就是起到了这个标记的作用, 1 表示下一个字节(往前读取) 仍然是 **back length** 的一部分, 0 表示当前这个字节已经是 **back length** 的最后一个字节了, 下一个字节(往前读取) 会是实际元素中的字节
 
-	/* p 是你开始往回读取的时候, 往左偏移一个字节的位置 */
-    uint64_t lpDecodeBacklen(unsigned char *p) {
-        uint64_t val = 0;
-        uint64_t shift = 0;
-        do {
-            val |= (uint64_t)(p[0] & 127) << shift;
-            /* 如果最左边的 bit 是 1, 跳出循环 */
-            if (!(p[0] & 128)) break;
-            /* 如果最左边的 bit 是 0, 继续 */
-            shift += 7;
-            p--;
-            if (shift > 28) return UINT64_MAX;
-        } while(1);
-        return val;
-    }
+```c
+/* p 是你开始往回读取的时候, 往左偏移一个字节的位置 */
+uint64_t lpDecodeBacklen(unsigned char *p) {
+    uint64_t val = 0;
+    uint64_t shift = 0;
+    do {
+        val |= (uint64_t)(p[0] & 127) << shift;
+        /* 如果最左边的 bit 是 1, 跳出循环 */
+        if (!(p[0] & 128)) break;
+        /* 如果最左边的 bit 是 0, 继续 */
+        shift += 7;
+        p--;
+        if (shift > 28) return UINT64_MAX;
+    } while(1);
+    return val;
+}
+
+```
 
 ## integer
 
@@ -165,7 +183,10 @@
 
 当你输入 **xadd** 命令时, **key** 和 **value** 都以 **string** 格式编码进行传输, 在存储到 **listpack** 的时候, 一个名为 `string2ll` 的函数会被调用, 尝试把这个字符串转换为 `int64_t` 类型, 在存储这个值相关联的整型(比如元素数量)的时候, `stream.insert` 会尝试用上述的 [ll2string](#ll2string) 把它转换为字符串, 然后 `listpack.insert` 再对字符串进行对应的编码, 把它转换回整型
 
-	127.0.0.1:6379> xadd mystream * key1 128
+```shell script
+127.0.0.1:6379> xadd mystream * key1 128
+
+```
 
 在转换成整数之后, 真正的表示方式是比较多样的
 

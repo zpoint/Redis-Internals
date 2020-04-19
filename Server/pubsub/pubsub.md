@@ -15,12 +15,15 @@
 
 In redis client, If you type the following command
 
-    127.0.0.1:6379> SUBSCRIBE c100
-    Reading messages... (press Ctrl-C to quit)
-    1) "subscribe"
-    2) "c100"
-    3) (integer) 1
+```shell script
+127.0.0.1:6379> SUBSCRIBE c100
+Reading messages... (press Ctrl-C to quit)
+1) "subscribe"
+2) "c100"
+3) (integer) 1
 
+
+```
 
 ![sub](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/sub.png)
 
@@ -35,12 +38,15 @@ While for `server` object, all channels in all `redis` clients are stored in the
 
 If we start another client and subscribe the same channel
 
-    127.0.0.1:6379> SUBSCRIBE c100
-    Reading messages... (press Ctrl-C to quit)
-    1) "subscribe"
-    2) "c100"
-    3) (integer) 1
+```shell script
+127.0.0.1:6379> SUBSCRIBE c100
+Reading messages... (press Ctrl-C to quit)
+1) "subscribe"
+2) "c100"
+3) (integer) 1
 
+
+```
 
 ![sub2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/sub2.png)
 
@@ -52,22 +58,28 @@ The time complexity is the length of `server.pubsub_channels`.`value`, it's a li
 
 If we type the following command in `redis-cli`
 
-    127.0.0.1:6379> PSUBSCRIBE h*llo
-    Reading messages... (press Ctrl-C to quit)
-    1) "psubscribe"
-    2) "h*llo"
-    3) (integer) 1
+```shell script
+127.0.0.1:6379> PSUBSCRIBE h*llo
+Reading messages... (press Ctrl-C to quit)
+1) "psubscribe"
+2) "h*llo"
+3) (integer) 1
+
+```
 
 ![psub](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/psub.png)
 
 
 And subscribe in other client
 
-    127.0.0.1:6379> PSUBSCRIBE h*llo
-    Reading messages... (press Ctrl-C to quit)
-    1) "psubscribe"
-    2) "h*llo"
-    3) (integer) 1
+```shell script
+127.0.0.1:6379> PSUBSCRIBE h*llo
+Reading messages... (press Ctrl-C to quit)
+1) "psubscribe"
+2) "h*llo"
+3) (integer) 1
+
+```
 
 ![psub2](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/psub2.png)
 
@@ -83,47 +95,50 @@ When you enter the `PUBLISH` command
 
 The following function will be called
 
-    int pubsubPublishMessage(robj *channel, robj *message) {
-        int receivers = 0;
-        dictEntry *de;
+```c
+int pubsubPublishMessage(robj *channel, robj *message) {
+    int receivers = 0;
+    dictEntry *de;
+    listNode *ln;
+    listIter li;
+
+    /* Send to clients listening for that channel */
+    de = dictFind(server.pubsub_channels,channel);
+    if (de) {
+        list *list = dictGetVal(de);
         listNode *ln;
         listIter li;
 
-        /* Send to clients listening for that channel */
-        de = dictFind(server.pubsub_channels,channel);
-        if (de) {
-            list *list = dictGetVal(de);
-            listNode *ln;
-            listIter li;
+        listRewind(list,&li);
+        while ((ln = listNext(&li)) != NULL) {
+            client *c = ln->value;
+            addReplyPubsubMessage(c,channel,message);
+            receivers++;
+        }
+    }
+    /* Send to clients listening to matching channels */
+    if (listLength(server.pubsub_patterns)) {
+        listRewind(server.pubsub_patterns,&li);
+        channel = getDecodedObject(channel);
+        while ((ln = listNext(&li)) != NULL) {
+            pubsubPattern *pat = ln->value;
 
-            listRewind(list,&li);
-            while ((ln = listNext(&li)) != NULL) {
-                client *c = ln->value;
-                addReplyPubsubMessage(c,channel,message);
+            if (stringmatchlen((char*)pat->pattern->ptr,
+                                sdslen(pat->pattern->ptr),
+                                (char*)channel->ptr,
+                                sdslen(channel->ptr),0))
+            {
+                addReplyPubsubPatMessage(pat->client,
+                    pat->pattern,channel,message);
                 receivers++;
             }
         }
-        /* Send to clients listening to matching channels */
-        if (listLength(server.pubsub_patterns)) {
-            listRewind(server.pubsub_patterns,&li);
-            channel = getDecodedObject(channel);
-            while ((ln = listNext(&li)) != NULL) {
-                pubsubPattern *pat = ln->value;
-
-                if (stringmatchlen((char*)pat->pattern->ptr,
-                                    sdslen(pat->pattern->ptr),
-                                    (char*)channel->ptr,
-                                    sdslen(channel->ptr),0))
-                {
-                    addReplyPubsubPatMessage(pat->client,
-                        pat->pattern,channel,message);
-                    receivers++;
-                }
-            }
-            decrRefCount(channel);
-        }
-        return receivers;
+        decrRefCount(channel);
     }
+    return receivers;
+}
+
+```
 
 The `list` of clients in `server.pubsub_channels` can be find in O(1) time, and we traverse the `list` and send each client a command
 

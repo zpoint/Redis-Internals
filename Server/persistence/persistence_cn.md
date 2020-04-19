@@ -33,24 +33,30 @@ AOF 是 Append Only File 的简称
 
 并且在redis客户端中
 
-    127.0.0.1:6379> set key1 val1
-    OK
+```shell script
+127.0.0.1:6379> set key1 val1
+OK
+
+```
 
 此时我们查看 `appendonly` 文件可以发现如下内容
 
-    cat appendonly.aof
-    *2
-    $6
-    SELECT
-    $1
-    0
-    *3
-    $3
-    set
-    $4
-    key1
-    $4
-    val1
+```c
+cat appendonly.aof
+*2
+$6
+SELECT
+$1
+0
+*3
+$3
+set
+$4
+key1
+$4
+val1
+
+```
 
 我们可以发现 `aof` 文件逐个的对各个命令进行存储
 
@@ -76,23 +82,26 @@ AOF 是 Append Only File 的简称
 
 为了防止这种情况发生, 引入了一种新的策略叫 `AOF 重写`
 
-	int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
-    	/* ... */
-        /* 在必要的时候触发 AOF 重写 */
-        if (server.aof_state == AOF_ON &&
-            server.rdb_child_pid == -1 &&
-            server.aof_child_pid == -1 &&
-            server.aof_rewrite_perc &&
-            server.aof_current_size > server.aof_rewrite_min_size)
-        {
-            long long base = server.aof_rewrite_base_size ?
-                server.aof_rewrite_base_size : 1;
-            long long growth = (server.aof_current_size*100/base) - 100;
-            if (growth >= server.aof_rewrite_perc) {
-                serverLog(LL_NOTICE,"Starting automatic rewriting of AOF on %lld%% growth",growth);
-                rewriteAppendOnlyFileBackground();
-            }
+```c
+int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+	/* ... */
+    /* 在必要的时候触发 AOF 重写 */
+    if (server.aof_state == AOF_ON &&
+        server.rdb_child_pid == -1 &&
+        server.aof_child_pid == -1 &&
+        server.aof_rewrite_perc &&
+        server.aof_current_size > server.aof_rewrite_min_size)
+    {
+        long long base = server.aof_rewrite_base_size ?
+            server.aof_rewrite_base_size : 1;
+        long long growth = (server.aof_current_size*100/base) - 100;
+        if (growth >= server.aof_rewrite_perc) {
+            serverLog(LL_NOTICE,"Starting automatic rewriting of AOF on %lld%% growth",growth);
+            rewriteAppendOnlyFileBackground();
         }
+    }
+
+```
 
 `aof_rewrite_perc` 可以在配置文件中进行配置, 它是一个增长比例, 达到这个比例时就自动后台触发 `AOF` 重写
 
@@ -102,81 +111,90 @@ AOF 是 Append Only File 的简称
 
 每一个命令在执行过程中会调用 `propagate` 函数, `propagate` 会调用 `feedAppendOnlyFile`, `feedAppendOnlyFile` 会做一些预处理(比如把 EXPIRE/PEXPIRE/EXPIREAT 命令转换为 PEXPIREAT 命令), 并且把预处理之后的命令以上述的格式存储到 `server.aof_buf` 缓冲区中
 
-	void call(client *c, int flags)
-    {
-        /* ... */
-        if (propagate_flags != PROPAGATE_NONE && !(c->cmd->flags & CMD_MODULE))
-            propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
-    }
+```c
+void call(client *c, int flags)
+{
+    /* ... */
+    if (propagate_flags != PROPAGATE_NONE && !(c->cmd->flags & CMD_MODULE))
+        propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+}
 
-    void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc, int flags)
-    {
-        if (server.aof_state != AOF_OFF && flags & PROPAGATE_AOF)
-            feedAppendOnlyFile(cmd,dbid,argv,argc);
-        if (flags & PROPAGATE_REPL)
-            replicationFeedSlaves(server.slaves,dbid,argv,argc);
-    }
+void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc, int flags)
+{
+    if (server.aof_state != AOF_OFF && flags & PROPAGATE_AOF)
+        feedAppendOnlyFile(cmd,dbid,argv,argc);
+    if (flags & PROPAGATE_REPL)
+        replicationFeedSlaves(server.slaves,dbid,argv,argc);
+}
 
-    void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int argc) {
-        /* ... */
-        if (server.aof_state == AOF_ON)
-            server.aof_buf = sdscatlen(server.aof_buf,buf,sdslen(buf));
-        sdsfree(buf);
-    }
+void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int argc) {
+    /* ... */
+    if (server.aof_state == AOF_ON)
+        server.aof_buf = sdscatlen(server.aof_buf,buf,sdslen(buf));
+    sdsfree(buf);
+}
 
+
+```
 
 `beforeSleep` 会在每一次事件驱动循环中被调用, 调用之后才会等待下一个可用的文件描述符
 
-    void beforeSleep(struct aeEventLoop *eventLoop) {
-        /* ... */
-        /* 把 AOF buffer 中的内容写到硬盘中 */
-        flushAppendOnlyFile(0);
-        /* ... */
-    }
+```c
+void beforeSleep(struct aeEventLoop *eventLoop) {
+    /* ... */
+    /* 把 AOF buffer 中的内容写到硬盘中 */
+    flushAppendOnlyFile(0);
+    /* ... */
+}
 
+
+```
 
 ## policy
 
-    void flushAppendOnlyFile(int force) {
+```c
+void flushAppendOnlyFile(int force) {
+	/* ... */
+
+    if (server.aof_fsync == AOF_FSYNC_EVERYSEC)
+        sync_in_progress = aofFsyncInProgress();
+
+    if (server.aof_fsync == AOF_FSYNC_EVERYSEC && !force) {
     	/* ... */
-
-        if (server.aof_fsync == AOF_FSYNC_EVERYSEC)
-            sync_in_progress = aofFsyncInProgress();
-
-        if (server.aof_fsync == AOF_FSYNC_EVERYSEC && !force) {
-        	/* ... */
-            /* 看情况决定是否返回 */
-        }
-		/* aofWrite 会进行 'write' 这个系统调用 */
-        latencyStartMonitor(latency);
-        nwritten = aofWrite(server.aof_fd,server.aof_buf,sdslen(server.aof_buf));
-        latencyEndMonitor(latency);
-
-    try_fsync:
-        /* 如果 no-appendfsync-on-rewrite 设置为 yes 并且有子进程在后台进行 I/O 操作, 则调用 fsync 把系统缓冲区内容刷到硬盘 */
-        if (server.aof_no_fsync_on_rewrite &&
-            (server.aof_child_pid != -1 || server.rdb_child_pid != -1))
-                return;
-
-        /* 在必要的时候调用 fsync */
-        if (server.aof_fsync == AOF_FSYNC_ALWAYS) {
-            /* 在 Linux 平台下, redis_fsync 被定义为 fdatasync(), 目的是避免刷新 metadata */
-            latencyStartMonitor(latency);
-            redis_fsync(server.aof_fd); /* 把系统缓冲区的内容刷到磁盘 */
-            latencyEndMonitor(latency);
-            latencyAddSampleIfNeeded("aof-fsync-always",latency);
-            server.aof_fsync_offset = server.aof_current_size;
-            server.aof_last_fsync = server.unixtime;
-        } else if ((server.aof_fsync == AOF_FSYNC_EVERYSEC &&
-                    server.unixtime > server.aof_last_fsync)) {
-            if (!sync_in_progress) {
-                aof_background_fsync(server.aof_fd);
-                server.aof_fsync_offset = server.aof_current_size;
-            }
-            server.aof_last_fsync = server.unixtime;
-        }
+        /* 看情况决定是否返回 */
     }
+	/* aofWrite 会进行 'write' 这个系统调用 */
+    latencyStartMonitor(latency);
+    nwritten = aofWrite(server.aof_fd,server.aof_buf,sdslen(server.aof_buf));
+    latencyEndMonitor(latency);
 
+try_fsync:
+    /* 如果 no-appendfsync-on-rewrite 设置为 yes 并且有子进程在后台进行 I/O 操作, 则调用 fsync 把系统缓冲区内容刷到硬盘 */
+    if (server.aof_no_fsync_on_rewrite &&
+        (server.aof_child_pid != -1 || server.rdb_child_pid != -1))
+            return;
+
+    /* 在必要的时候调用 fsync */
+    if (server.aof_fsync == AOF_FSYNC_ALWAYS) {
+        /* 在 Linux 平台下, redis_fsync 被定义为 fdatasync(), 目的是避免刷新 metadata */
+        latencyStartMonitor(latency);
+        redis_fsync(server.aof_fd); /* 把系统缓冲区的内容刷到磁盘 */
+        latencyEndMonitor(latency);
+        latencyAddSampleIfNeeded("aof-fsync-always",latency);
+        server.aof_fsync_offset = server.aof_current_size;
+        server.aof_last_fsync = server.unixtime;
+    } else if ((server.aof_fsync == AOF_FSYNC_EVERYSEC &&
+                server.unixtime > server.aof_last_fsync)) {
+        if (!sync_in_progress) {
+            aof_background_fsync(server.aof_fd);
+            server.aof_fsync_offset = server.aof_current_size;
+        }
+        server.aof_last_fsync = server.unixtime;
+    }
+}
+
+
+```
 
 ![aof_buffer](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/persistence/aof_buffer.png)
 
@@ -204,36 +222,42 @@ RDB 是 Redis - DataBase 的简称
 
 然后再 redis 客户端中插入一个键对值
 
-    127.0.0.1:6379> set key1 val1
-    OK
+```shell script
+127.0.0.1:6379> set key1 val1
+OK
+
+```
 
 我们开启 `redis-server` 并且查看下 rdb 文件
 
+```c
 
-	% od -A d -t cu1 -c dump.rdb
-    0000000    R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
-               82  69  68  73  83  48  48  48  57 250   9 114 101 100 105 115
-               R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
-    0000016    -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
-               45 118 101 114  11  57  57  57  46  57  57  57  46  57  57  57
-               -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
-    0000032  372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
-              250  10 114 101 100 105 115  45  98 105 116 115 192  64 250   5
-             372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
-    0000048    c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
-               99 116 105 109 101 194 192  68  12  94 250   8 117 115 101 100
-               c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
-    0000064    -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
-               45 109 101 109 194 224  61  15   0 250  12  97 111 102  45 112
-               -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
-    0000080    r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
-              114 101  97 109  98 108 101 192   0 254   0 251   1   0   0   4
-               r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
-    0000096    k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
-              107 101 121  49   4 118  97 108  49 255  10  36  64 113 198  59
-               k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
-    0000112    Y 274
-               89 229
+% od -A d -t cu1 -c dump.rdb
+0000000    R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
+           82  69  68  73  83  48  48  48  57 250   9 114 101 100 105 115
+           R   E   D   I   S   0   0   0   9 372  \t   r   e   d   i   s
+0000016    -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
+           45 118 101 114  11  57  57  57  46  57  57  57  46  57  57  57
+           -   v   e   r  \v   9   9   9   .   9   9   9   .   9   9   9
+0000032  372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
+          250  10 114 101 100 105 115  45  98 105 116 115 192  64 250   5
+         372  \n   r   e   d   i   s   -   b   i   t   s 300   @ 372 005
+0000048    c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
+           99 116 105 109 101 194 192  68  12  94 250   8 117 115 101 100
+           c   t   i   m   e 302 300   D  \f   ^ 372  \b   u   s   e   d
+0000064    -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
+           45 109 101 109 194 224  61  15   0 250  12  97 111 102  45 112
+           -   m   e   m 302 340   = 017  \0 372  \f   a   o   f   -   p
+0000080    r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
+          114 101  97 109  98 108 101 192   0 254   0 251   1   0   0   4
+           r   e   a   m   b   l   e 300  \0 376  \0 373 001  \0  \0 004
+0000096    k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
+          107 101 121  49   4 118  97 108  49 255  10  36  64 113 198  59
+           k   e   y   1 004   v   a   l   1 377  \n   $   @   q 306   ;
+0000112    Y 274
+           89 229
+
+```
 
 上面的内容是一个只有一个 key 值的 rdb 文件, 最开始的内容为
 
@@ -276,34 +300,37 @@ RDB 是 Redis - DataBase 的简称
 
 ## rdb什么时候会被触发
 
-	int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
-        if (server.rdb_child_pid != -1 || server.aof_child_pid != -1 ||
-            ldbPendingChildren())
-        {
-            /* ... */
-        } else {
-            /* 如果当前的后台没有 saving/rewrite 操作, 检查我们是否需要进行 save/rewrite 操作 */
-            for (j = 0; j < server.saveparamslen; j++) {
-                struct saveparam *sp = server.saveparams+j;
-
-                /* 如果达到了指定数量的修改, 或者指定的时间, 并且最近的 bgsave 是成功的, 或者最近的 bgsave 失败但是已经过了 CONFIG_BGSAVE_RETRY_DELAY 秒钟了 */
-                if (server.dirty >= sp->changes &&
-                    server.unixtime-server.lastsave > sp->seconds &&
-                    (server.unixtime-server.lastbgsave_try >
-                     CONFIG_BGSAVE_RETRY_DELAY ||
-                     server.lastbgsave_status == C_OK))
-                {
-                    serverLog(LL_NOTICE,"%d changes in %d seconds. Saving...",
-                        sp->changes, (int)sp->seconds);
-                    rdbSaveInfo rsi, *rsiptr;
-                    rsiptr = rdbPopulateSaveInfo(&rsi);
-                    rdbSaveBackground(server.rdb_filename,rsiptr);
-                    break;
-                }
-            }
+```c
+int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+    if (server.rdb_child_pid != -1 || server.aof_child_pid != -1 ||
+        ldbPendingChildren())
+    {
         /* ... */
-    }
+    } else {
+        /* 如果当前的后台没有 saving/rewrite 操作, 检查我们是否需要进行 save/rewrite 操作 */
+        for (j = 0; j < server.saveparamslen; j++) {
+            struct saveparam *sp = server.saveparams+j;
 
+            /* 如果达到了指定数量的修改, 或者指定的时间, 并且最近的 bgsave 是成功的, 或者最近的 bgsave 失败但是已经过了 CONFIG_BGSAVE_RETRY_DELAY 秒钟了 */
+            if (server.dirty >= sp->changes &&
+                server.unixtime-server.lastsave > sp->seconds &&
+                (server.unixtime-server.lastbgsave_try >
+                 CONFIG_BGSAVE_RETRY_DELAY ||
+                 server.lastbgsave_status == C_OK))
+            {
+                serverLog(LL_NOTICE,"%d changes in %d seconds. Saving...",
+                    sp->changes, (int)sp->seconds);
+                rdbSaveInfo rsi, *rsiptr;
+                rsiptr = rdbPopulateSaveInfo(&rsi);
+                rdbSaveBackground(server.rdb_filename,rsiptr);
+                break;
+            }
+        }
+    /* ... */
+}
+
+
+```
 
 ## 策略
 
@@ -313,7 +340,10 @@ RDB 是 Redis - DataBase 的简称
 
 则执行 `rdbSaveBackground`
 
-	save 900 1
+```c
+save 900 1
+
+```
 
 你可以指定多条规则, 所有的规则会被存储在 `server.saveparam` 这个数组中, 如果当前的服务状态匹配上了数组中的任意一个规则, `serverCron` 这个函数就会触发 `rdbSaveBackground`
 

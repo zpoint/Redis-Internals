@@ -5,10 +5,13 @@
 
 This repository is my notes for [redis](https://github.com/antirez/redis) source code
 
-    # based on version 5.0.5
-    cd redis
-    git fetch origin 5.0:5.0
-    git reset --hard 388efbf8b661ce2e5db447e994bf3c3caf6403c6
+```c
+# based on version 5.0.5
+cd redis
+git fetch origin 5.0:5.0
+git reset --hard 388efbf8b661ce2e5db447e994bf3c3caf6403c6
+
+```
 
 # Table of Contents
 

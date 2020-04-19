@@ -30,69 +30,78 @@
 
 Redis 当前支持以下几种消息类型
 
-    #define CLUSTERMSG_TYPE_PING 0          /* Ping */
-    #define CLUSTERMSG_TYPE_PONG 1          /* Pong (回复 Ping 消息的时候用) */
-    #define CLUSTERMSG_TYPE_MEET 2          /* Meet 加入集群的消息 */
-    #define CLUSTERMSG_TYPE_FAIL 3          /* 把某个节点标记成故障 */
-    #define CLUSTERMSG_TYPE_PUBLISH 4       /* 发布订阅时发布消息推送 */
-    #define CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST 5 /* 我可以进行故障转移吗 ? */
-    #define CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK 6     /* 可以, 我给你投票 */
-    #define CLUSTERMSG_TYPE_UPDATE 7        /* 集群节点配置信息 */
-    #define CLUSTERMSG_TYPE_MFSTART 8       /* 手动暂停这个节点, 进行手动故障转移 */
-    #define CLUSTERMSG_TYPE_MODULE 9        /* 集群模块 API 消息 */
-    #define CLUSTERMSG_TYPE_COUNT 10        /* 消息类型的总数 */
+```c
+#define CLUSTERMSG_TYPE_PING 0          /* Ping */
+#define CLUSTERMSG_TYPE_PONG 1          /* Pong (回复 Ping 消息的时候用) */
+#define CLUSTERMSG_TYPE_MEET 2          /* Meet 加入集群的消息 */
+#define CLUSTERMSG_TYPE_FAIL 3          /* 把某个节点标记成故障 */
+#define CLUSTERMSG_TYPE_PUBLISH 4       /* 发布订阅时发布消息推送 */
+#define CLUSTERMSG_TYPE_FAILOVER_AUTH_REQUEST 5 /* 我可以进行故障转移吗 ? */
+#define CLUSTERMSG_TYPE_FAILOVER_AUTH_ACK 6     /* 可以, 我给你投票 */
+#define CLUSTERMSG_TYPE_UPDATE 7        /* 集群节点配置信息 */
+#define CLUSTERMSG_TYPE_MFSTART 8       /* 手动暂停这个节点, 进行手动故障转移 */
+#define CLUSTERMSG_TYPE_MODULE 9        /* 集群模块 API 消息 */
+#define CLUSTERMSG_TYPE_COUNT 10        /* 消息类型的总数 */
 
+
+```
 
 `clusterCron` 会遍历每个节点, 如果当前的节点和被遍历的节点之间没有活跃的连接, 则调用 `clusterSendPing` 发送 `PING` 消息
 
 `clusterCron` 也会每秒随机对 1 个节点进行 `PING` 消息发送
 
-    /* 每10次循环随机的 Ping 一些节点, 通常我们每秒都会随机对一个节点发送 PING 消息 */
-    if (!(iteration % 10)) {
-        int j;
+```c
+/* 每10次循环随机的 Ping 一些节点, 通常我们每秒都会随机对一个节点发送 PING 消息 */
+if (!(iteration % 10)) {
+    int j;
 
-        /* 随机检查几个节点, 并 PING 其中 pong_received 时间最晚的那个节点 */
-        for (j = 0; j < 5; j++) {
-            de = dictGetRandomKey(server.cluster->nodes);
-            clusterNode *this = dictGetVal(de);
+    /* 随机检查几个节点, 并 PING 其中 pong_received 时间最晚的那个节点 */
+    for (j = 0; j < 5; j++) {
+        de = dictGetRandomKey(server.cluster->nodes);
+        clusterNode *this = dictGetVal(de);
 
-            /* 不去 ping 那些已经断开或者当前有一个活跃的 ping 的节点 */
-            if (this->link == NULL || this->ping_sent != 0) continue;
-            if (this->flags & (CLUSTER_NODE_MYSELF|CLUSTER_NODE_HANDSHAKE))
-                continue;
-            if (min_pong_node == NULL || min_pong > this->pong_received) {
-                min_pong_node = this;
-                min_pong = this->pong_received;
-            }
-        }
-        if (min_pong_node) {
-            serverLog(LL_DEBUG,"Pinging node %.40s", min_pong_node->name);
-            clusterSendPing(min_pong_node->link, CLUSTERMSG_TYPE_PING);
+        /* 不去 ping 那些已经断开或者当前有一个活跃的 ping 的节点 */
+        if (this->link == NULL || this->ping_sent != 0) continue;
+        if (this->flags & (CLUSTER_NODE_MYSELF|CLUSTER_NODE_HANDSHAKE))
+            continue;
+        if (min_pong_node == NULL || min_pong > this->pong_received) {
+            min_pong_node = this;
+            min_pong = this->pong_received;
         }
     }
+    if (min_pong_node) {
+        serverLog(LL_DEBUG,"Pinging node %.40s", min_pong_node->name);
+        clusterSendPing(min_pong_node->link, CLUSTERMSG_TYPE_PING);
+    }
+}
+
+```
 
 `clusterCron` 会再次遍历所有节点, 并在以下情况发生时发送 PING 消息
 
-    /* 如果当前的节点和这个节点之前没有正在发送的 PING 消息, 并且收到的 PONG 比集群超时时间的一半还要长,
-     * 那么给这个节点发送一个新的 PING 消息, 这个策略可以保证所有的节点都和当前的节点之间的 PING 延时不会太高 */
-    if (node->link &&
-        node->ping_sent == 0 &&
-        (now - node->pong_received) > server.cluster_node_timeout/2)
-    {
-        clusterSendPing(node->link, CLUSTERMSG_TYPE_PING);
-        continue;
-    }
+```c
+/* 如果当前的节点和这个节点之前没有正在发送的 PING 消息, 并且收到的 PONG 比集群超时时间的一半还要长,
+ * 那么给这个节点发送一个新的 PING 消息, 这个策略可以保证所有的节点都和当前的节点之间的 PING 延时不会太高 */
+if (node->link &&
+    node->ping_sent == 0 &&
+    (now - node->pong_received) > server.cluster_node_timeout/2)
+{
+    clusterSendPing(node->link, CLUSTERMSG_TYPE_PING);
+    continue;
+}
 
 
-    /* 如果我们是一个 master, 并且其中的一个 slaves 要求一个手动的故障转移, 那么持续的对这个节点进行 PING */
-    if (server.cluster->mf_end &&
-        nodeIsMaster(myself) &&
-        server.cluster->mf_slave == node &&
-        node->link)
-    {
-        clusterSendPing(node->link, CLUSTERMSG_TYPE_PING);
-        continue;
-    }
+/* 如果我们是一个 master, 并且其中的一个 slaves 要求一个手动的故障转移, 那么持续的对这个节点进行 PING */
+if (server.cluster->mf_end &&
+    nodeIsMaster(myself) &&
+    server.cluster->mf_slave == node &&
+    node->link)
+{
+    clusterSendPing(node->link, CLUSTERMSG_TYPE_PING);
+    continue;
+}
+
+```
 
 所以, 如果我们是 nodeC, 我们会和 nodeA, nodeB 和所有 nodeA 的 slaves 之间保持连接, 并且根据上面的规则不间断的发送 `PING` 消息
 
@@ -115,22 +124,25 @@ Redis 当前支持以下几种消息类型
 
 `clusterMsgData` 中的实际节点信息数目为 `min(freshnodes, wanted)`
 
+```c
 
-    /* freshnodes 是我们最多可以增加到尾部的节点信息数目
+/* freshnodes 是我们最多可以增加到尾部的节点信息数目
 
-     * 所有可用的节点数目 - 2(我们自己和我们现在正在发送的目标节点)
+ * 所有可用的节点数目 - 2(我们自己和我们现在正在发送的目标节点)
 
-     * 实际上可能有比上面公式更少的能用的节点, 比如那些在握手阶段的, 断线的都未考虑进去
-     */
-    int freshnodes = dictSize(server.cluster->nodes)-2;
+ * 实际上可能有比上面公式更少的能用的节点, 比如那些在握手阶段的, 断线的都未考虑进去
+ */
+int freshnodes = dictSize(server.cluster->nodes)-2;
 
-    /*
-    /* 有多少个节点信息需要被添加到 gossip 消息中 ? 所有节点数的 1/10
-     * 并且至少为 3 个
-     * 1/10 的原因在 redis/src/cluster.c 源码注释中
-     * 主要是这个比例能在一定时间范围内收到错误报告信息
-     */
-    wanted = floor(dictSize(server.cluster->nodes)/10);
+/*
+/* 有多少个节点信息需要被添加到 gossip 消息中 ? 所有节点数的 1/10
+ * 并且至少为 3 个
+ * 1/10 的原因在 redis/src/cluster.c 源码注释中
+ * 主要是这个比例能在一定时间范围内收到错误报告信息
+ */
+wanted = floor(dictSize(server.cluster->nodes)/10);
+
+```
 
 所以, `clusterMsgData` 中节点的选择是随机的
 
@@ -138,28 +150,31 @@ Redis 当前支持以下几种消息类型
 
 每一条 `PING` 消息都会有一条 `PONG` 消息作为回复, `PING` 消息的回复就是 `PONG` 消息, `PONG` 的构造和 `PING` 消息基本一致, 除了 `hdr->type` 中的类型不一样
 
+```c
 
-	int clusterProcessPacket(clusterLink *link) {
-    	/* ... */
-        /* PING 和 MEET 消息需要生成一条 PONG 消息作为回复*/
-        if (type == CLUSTERMSG_TYPE_PING || type == CLUSTERMSG_TYPE_MEET) {
-            /* ... */
-            clusterSendPing(link,CLUSTERMSG_TYPE_PONG);
-        }
+int clusterProcessPacket(clusterLink *link) {
+	/* ... */
+    /* PING 和 MEET 消息需要生成一条 PONG 消息作为回复*/
+    if (type == CLUSTERMSG_TYPE_PING || type == CLUSTERMSG_TYPE_MEET) {
         /* ... */
+        clusterSendPing(link,CLUSTERMSG_TYPE_PONG);
     }
+    /* ... */
+}
 
-    /* 创建消息头, hdr 必须指向拥有 sizeof(clusterMsg) 空间大小的缓冲区 */
-    void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
-        /* ... */
-        hdr->ver = htons(CLUSTER_PROTO_VER);
-        hdr->sig[0] = 'R';
-        hdr->sig[1] = 'C';
-        hdr->sig[2] = 'm';
-        hdr->sig[3] = 'b';
-        hdr->type = htons(type);
-        memcpy(hdr->sender,myself->name,CLUSTER_NAMELEN);
-        /* ... */
-    }
+/* 创建消息头, hdr 必须指向拥有 sizeof(clusterMsg) 空间大小的缓冲区 */
+void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
+    /* ... */
+    hdr->ver = htons(CLUSTER_PROTO_VER);
+    hdr->sig[0] = 'R';
+    hdr->sig[1] = 'C';
+    hdr->sig[2] = 'm';
+    hdr->sig[3] = 'b';
+    hdr->type = htons(type);
+    memcpy(hdr->sender,myself->name,CLUSTER_NAMELEN);
+    /* ... */
+}
+
+```
 
 如果你对其他类型的消息感兴趣, 请参考 `redis/src/cluster.c` 中的源码

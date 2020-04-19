@@ -7,7 +7,10 @@
 * [internal](#internal)
 * [read more](#read-more)
 
+```c
 
+
+```
 
 # related file
 * redis/src/rax.h
@@ -21,50 +24,62 @@
 
 # internal
 
+```shell script
 
-    127.0.0.1:6379> xadd mystream * key1 val1
-    "1575180011273-0"
-    127.0.0.1:6379> XGROUP CREATE mystream mygroup1 $
-    OK
+127.0.0.1:6379> xadd mystream * key1 val1
+"1575180011273-0"
+127.0.0.1:6379> XGROUP CREATE mystream mygroup1 $
+OK
+
+```
 
 Usually, this is what radix tree looks like
 
-     * This is the vanilla representation:
-     *
-     *              (f) ""
-     *                \
-     *                (o) "f"
-     *                  \
-     *                  (o) "fo"
-     *                    \
-     *                  [t   b] "foo"
-     *                  /     \
-     *         "foot" (e)     (a) "foob"
-     *                /         \
-     *      "foote" (r)         (r) "fooba"
-     *              /             \
-     *    "footer" []             [] "foobar"
-     *
+```c
+ * This is the vanilla representation:
+ *
+ *              (f) ""
+ *                \
+ *                (o) "f"
+ *                  \
+ *                  (o) "fo"
+ *                    \
+ *                  [t   b] "foo"
+ *                  /     \
+ *         "foot" (e)     (a) "foob"
+ *                /         \
+ *      "foote" (r)         (r) "fooba"
+ *              /             \
+ *    "footer" []             [] "foobar"
+ *
+
+```
 
 From `redis/src/rax.h`
 
 >  However, this implementation implements a very common optimization where successive nodes having a single child are "compressed" into the node itself as a string of characters, each representing a next-level child, and only the link to the node representing the last character node is provided inside the representation. So the above representation is turend into:
 
-     *
-     *                  ["foo"] ""
-     *                     |
-     *                  [t   b] "foo"
-     *                  /     \
-     *        "foot" ("er")    ("ar") "foob"
-     *                 /          \
-     *       "footer" []          [] "foobar"
+```c
+ *
+ *                  ["foo"] ""
+ *                     |
+ *                  [t   b] "foo"
+ *                  /     \
+ *        "foot" ("er")    ("ar") "foob"
+ *                 /          \
+ *       "footer" []          [] "foobar"
+
+```
 
 The string `mygroup1` stored inside the rax is compressed, and can be described as
 
-     *
-     *                  ["mygroup1"] ""
-     *                     |
-     *                    [] "mygroup1"
+```c
+ *
+ *                  ["mygroup1"] ""
+ *                     |
+ *                    [] "mygroup1"
+
+```
 
 The first node stored the compressed text `mygroup1`, the second node is an empty leaf, and is also a key, indicate that the string before this node is stored inside this `rax`
 
@@ -86,19 +101,25 @@ The second node with `iskey` set means the current node is a key node, it verify
 
 Let's insert one more `consumer group` name to the current radix tree
 
-    127.0.0.1:6379> XGROUP CREATE mystream mygroup2 $
-    OK
+```shell script
+127.0.0.1:6379> XGROUP CREATE mystream mygroup2 $
+OK
+
+```
 
 ![mygroup2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/mygroup2.png)
 
 We can learn from the diagram that the first node is trimed and a new rax node is inserted, the bottom left node is the origin bottom node, the bottom right node is also a newly inserted node
 
-     *
-     *                  ["mygroup"] ""
-     *                     |
-     *                  [1   2] "mygroup"
-     *                  /     \
-     *      "mygroup1" []     [] "mygroup2"
+```c
+ *
+ *                  ["mygroup"] ""
+ *                     |
+ *                  [1   2] "mygroup"
+ *                  /     \
+ *      "mygroup1" []     [] "mygroup2"
+
+```
 
 The middle node is not `compressed`(`iscompr` not set), there will be `size` characters in the data field, and after these characters, there will also be `size` pointers to each `raxNode` structure
 

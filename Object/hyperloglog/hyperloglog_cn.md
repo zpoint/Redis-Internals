@@ -27,19 +27,25 @@
 
 对于 **hyperloglog** 这个结构, 总共有 3 种不同的编码(存储)方式
 
-    127.0.0.1:6379> PFADD key1 hello
-    (integer) 1
-    127.0.0.1:6379> OBJECT ENCODING key1
-    "raw"
+```shell script
+127.0.0.1:6379> PFADD key1 hello
+(integer) 1
+127.0.0.1:6379> OBJECT ENCODING key1
+"raw"
+
+```
 
 ![sparse](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse.png)
 
 我们可以发现, **redis** 使用了 [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md) 结构来存储 **hyperloglog**, **sds** 中的 `buf` 字段可以直接转换成  `hllhdr` 指针, `magic` 字段是一个字符串常量, 里面的值是 `HYLL`, 占用一字节大小的 `encoding` 表示了这个 **hyperloglog** 是以 **dense**(稠密) 的方式存储的还是以稀疏的方式存储的
 
-    /* redis/src/hyperloglog.c */
-    #define HLL_DENSE 0 /* 稠密. */
-    #define HLL_SPARSE 1 /* 稀疏. */
-    #define HLL_RAW 255 /* 只在内部处理的时候用到, 用户在外部无法操作 */
+```c
+/* redis/src/hyperloglog.c */
+#define HLL_DENSE 0 /* 稠密. */
+#define HLL_SPARSE 1 /* 稀疏. */
+#define HLL_RAW 255 /* 只在内部处理的时候用到, 用户在外部无法操作 */
+
+```
 
 当前的 `encoding` 是 `HLL_SPARSE`
 
@@ -59,16 +65,22 @@
 
 当前在 `registers` 中的字节可以翻译成
 
-	XZERO:9216
-    VAL:1,1
-    XZERO:7167
+```c
+XZERO:9216
+VAL:1,1
+XZERO:7167
+
+```
 
 同样可以翻译成
 
-	/* 总共有 16384 个 registers, 下标从 0 到 16383 */
-    Registers 0-9215 的值为 0 (XZERO:9216)
-    有一个 register 的值为 1, 这个 register 的下标为 9216 (VAL:1,1)
-    XZERO:7167 (下标为 9217-16383 的 registers 都设置为 0) /* 9216 + 7167 = 16383 */
+```c
+/* 总共有 16384 个 registers, 下标从 0 到 16383 */
+Registers 0-9215 的值为 0 (XZERO:9216)
+有一个 register 的值为 1, 这个 register 的下标为 9216 (VAL:1,1)
+XZERO:7167 (下标为 9217-16383 的 registers 都设置为 0) /* 9216 + 7167 = 16383 */
+
+```
 
 这是翻译并展开后的 registers 的样子, 如果一共有 16384 个 registers 并且每一个占用 `6 bits` 的大小来存储这个 register 对应的值, 那么一共需要 `16384 * 6(bits) = 12(kbytes)`(12kb 的大小来存储仅仅1个值为1的整型)
 
@@ -78,26 +90,35 @@
 
 ![sparse_low_registers](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse_low_registers.png)
 
-    127.0.0.1:6379> PFADD key1 world
-    (integer) 1
-    127.0.0.1:6379> PFCOUNT key1
-    (integer) 2
+```shell script
+127.0.0.1:6379> PFADD key1 world
+(integer) 1
+127.0.0.1:6379> PFCOUNT key1
+(integer) 2
+
+```
 
 现在 `registers` 中的字节可以翻译成
 
-	XZERO:2742
-    VAL:3,1
-    XZERO:6473
-    VAL:1,1
-    XZERO:7167
+```c
+XZERO:2742
+VAL:3,1
+XZERO:6473
+VAL:1,1
+XZERO:7167
+
+```
 
 同样可以翻译成
 
-    Registers 0-2741 的值为 0 (XZERO:2742)
-	有一个 register 的值为 3, 这个 register 的下标为 2742 (VAL:3,1)
-    XZERO:6473 (下标为 2743-9215 的 registers 都设置为 0) /* 2742 + 6473 = 9215 */
-    有一个 register 的值为 1, 这个 register 的下标为 9216 (VAL:1,1)
-    XZERO:7167 (下标为 9217-16383 的 registers 都设置为 0) /* 9216 + 7167 = 16383 */
+```c
+Registers 0-2741 的值为 0 (XZERO:2742)
+有一个 register 的值为 3, 这个 register 的下标为 2742 (VAL:3,1)
+XZERO:6473 (下标为 2743-9215 的 registers 都设置为 0) /* 2742 + 6473 = 9215 */
+有一个 register 的值为 1, 这个 register 的下标为 9216 (VAL:1,1)
+XZERO:7167 (下标为 9217-16383 的 registers 都设置为 0) /* 9216 + 7167 = 16383 */
+
+```
 
 通过稀疏的方式, 总共只用了 8 个字节就存储下了一整个长度为 16384 的数组
 
@@ -111,10 +132,13 @@
 
 我在我的配置文件里设置了如下的配置 `hll-sparse-max-bytes 0`(仅仅是出于演示目的)
 
-    127.0.0.1:6379> PFADD key1 here
-    (integer) 1
-    127.0.0.1:6379> PFCOUNT key1
-    (integer) 3
+```shell script
+127.0.0.1:6379> PFADD key1 here
+(integer) 1
+127.0.0.1:6379> PFCOUNT key1
+(integer) 3
+
+```
 
 现在 **hyperloglog** 的实际构造变成了如下的样子
 
@@ -134,7 +158,10 @@
 
 比如你调用如下命令时
 
-	PFADD key1 hello
+```c
+PFADD key1 hello
+
+```
 
 这是我的机器(小端)上的实际的 `murmur(hello)` 之后的值
 
@@ -154,7 +181,10 @@
 
 如果你继续调用
 
-	PFADD key1 world
+```c
+PFADD key1 world
+
+```
 
 `murmur(world)` 的结果如下图所示, 最右边 14 个 bits 的值为 2742, 并且从 14th 到最左边的 bit 中, 第一个 1 出现在 16th 的位置, 所以 `count` 的值为 3
 
@@ -172,37 +202,40 @@
 
 在计算完成后, 最终的值会被缓存在 `card` 字段中, 下一次调用 `PFCOUNT` 时会直接返回缓存在 `card` 字段中的值
 
-    uint64_t hllCount(struct hllhdr *hdr, int *invalid) {
-        double m = HLL_REGISTERS;
-        double E;
-        int j;
-        int reghisto[64] = {0};
+```c
+uint64_t hllCount(struct hllhdr *hdr, int *invalid) {
+    double m = HLL_REGISTERS;
+    double E;
+    int j;
+    int reghisto[64] = {0};
 
-        /* 展开 register 数组 */
-        if (hdr->encoding == HLL_DENSE) {
-            hllDenseRegHisto(hdr->registers,reghisto);
-        } else if (hdr->encoding == HLL_SPARSE) {
-            hllSparseRegHisto(hdr->registers,
-                             sdslen((sds)hdr)-HLL_HDR_SIZE,invalid,reghisto);
-        } else if (hdr->encoding == HLL_RAW) {
-            hllRawRegHisto(hdr->registers,reghisto);
-        } else {
-            serverPanic("Unknown HyperLogLog encoding in hllCount()");
-        }
-
-        /* 根据下面这篇论文的公式计算基数值
-         * "New cardinality estimation algorithms for HyperLogLog sketches"
-         * Otmar Ertl, arXiv:1702.01284 */
-        double z = m * hllTau((m-reghisto[HLL_Q+1])/(double)m);
-        for (j = HLL_Q; j >= 1; --j) {
-            z += reghisto[j];
-            z *= 0.5;
-        }
-        z += m * hllSigma(reghisto[0]/(double)m);
-        E = llroundl(HLL_ALPHA_INF*m*m/z);
-
-        return (uint64_t) E;
+    /* 展开 register 数组 */
+    if (hdr->encoding == HLL_DENSE) {
+        hllDenseRegHisto(hdr->registers,reghisto);
+    } else if (hdr->encoding == HLL_SPARSE) {
+        hllSparseRegHisto(hdr->registers,
+                         sdslen((sds)hdr)-HLL_HDR_SIZE,invalid,reghisto);
+    } else if (hdr->encoding == HLL_RAW) {
+        hllRawRegHisto(hdr->registers,reghisto);
+    } else {
+        serverPanic("Unknown HyperLogLog encoding in hllCount()");
     }
+
+    /* 根据下面这篇论文的公式计算基数值
+     * "New cardinality estimation algorithms for HyperLogLog sketches"
+     * Otmar Ertl, arXiv:1702.01284 */
+    double z = m * hllTau((m-reghisto[HLL_Q+1])/(double)m);
+    for (j = HLL_Q; j >= 1; --j) {
+        z += reghisto[j];
+        z *= 0.5;
+    }
+    z += m * hllSigma(reghisto[0]/(double)m);
+    E = llroundl(HLL_ALPHA_INF*m*m/z);
+
+    return (uint64_t) E;
+}
+
+```
 
 # 更多资料
 * [redis源码分析2--hyperloglog 基数统计](https://www.cnblogs.com/lh-ty/p/9972901.html)

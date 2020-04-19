@@ -39,10 +39,13 @@ The block in red in the basic layout of `streams` structure
 
 `stremas` is a new and special type, the `object encoding` returns `unknown` but it actually has a type named `OBJ_STREAM`
 
-    127.0.0.1:6379> xadd mystream * key1 128
-    "1576480551233-0"
-    127.0.0.1:6379> object encoding mystream
-    "unknown"
+```shell script
+127.0.0.1:6379> xadd mystream * key1 128
+"1576480551233-0"
+127.0.0.1:6379> object encoding mystream
+"unknown"
+
+```
 
 Together with [rax](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/rax/rax.md) and [listpack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/listpack/listpack.md) in [prerequisites](#prerequisites), there're totally 3 parts in `mystream`
 
@@ -58,8 +61,11 @@ The third part is `listpack`, every key node in the `rax` stores the according `
 
 If we add a new value to the same key again
 
-    127.0.0.1:6379> xadd mystream * key1 val1
-    "1576486352510-0"
+```shell script
+127.0.0.1:6379> xadd mystream * key1 val1
+"1576486352510-0"
+
+```
 
 ![mystream2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/mystream2.png)
 
@@ -71,49 +77,52 @@ We can see that the `stream` structure is used for storing data, `rax` points to
 
 `cgroups` stores the information of `consumer groups` in `rax` data structure
 
-	int streamAppendItem(stream *s, robj **argv, int64_t numfields, streamID *added_id, streamID *use_id) {
-        raxIterator ri;
-        raxStart(&ri,s->rax);
-        raxSeek(&ri,"$",NULL,0);
-        /* ... */
-        /* Get a reference to the tail node listpack. */
-        if (raxNext(&ri)) {
-            lp = ri.data;
-            lp_bytes = lpBytes(lp);
-        }
-        /* ... */
-        /* The master entry is composed like in the following example:
-         *
-         * +-------+---------+------------+---------+--/--+---------+---------+-+
-         * | count | deleted | num-fields | field_1 | field_2 | ... | field_N |0|
-         * +-------+---------+------------+---------+--/--+---------+---------+-+
-         * /
-        if (lp != NULL) {
-            if (server.stream_node_max_bytes &&
-                lp_bytes > server.stream_node_max_bytes)
-            {
-                lp = NULL;
-            } else if (server.stream_node_max_entries) {
-                int64_t count = lpGetInteger(lpFirst(lp));
-                if (count > server.stream_node_max_entries) lp = NULL;
-            }
-        }
-        /* Populate the listpack with the new entry. We use the following
-         * encoding:
-         *
-         * +-----+--------+----------+-------+-------+-/-+-------+-------+--------+
-         * |flags|entry-id|num-fields|field-1|value-1|...|field-N|value-N|lp-count|
-         * +-----+--------+----------+-------+-------+-/-+-------+-------+--------+
-         *
-         * However if the SAMEFIELD flag is set, we have just to populate
-         * the entry with the values, so it becomes:
-         *
-         * +-----+--------+-------+-/-+-------+--------+
-         * |flags|entry-id|value-1|...|value-N|lp-count|
-         * +-----+--------+-------+-/-+-------+--------+
-         * ...
-         * /
+```c
+int streamAppendItem(stream *s, robj **argv, int64_t numfields, streamID *added_id, streamID *use_id) {
+    raxIterator ri;
+    raxStart(&ri,s->rax);
+    raxSeek(&ri,"$",NULL,0);
+    /* ... */
+    /* Get a reference to the tail node listpack. */
+    if (raxNext(&ri)) {
+        lp = ri.data;
+        lp_bytes = lpBytes(lp);
     }
+    /* ... */
+    /* The master entry is composed like in the following example:
+     *
+     * +-------+---------+------------+---------+--/--+---------+---------+-+
+     * | count | deleted | num-fields | field_1 | field_2 | ... | field_N |0|
+     * +-------+---------+------------+---------+--/--+---------+---------+-+
+     * /
+    if (lp != NULL) {
+        if (server.stream_node_max_bytes &&
+            lp_bytes > server.stream_node_max_bytes)
+        {
+            lp = NULL;
+        } else if (server.stream_node_max_entries) {
+            int64_t count = lpGetInteger(lpFirst(lp));
+            if (count > server.stream_node_max_entries) lp = NULL;
+        }
+    }
+    /* Populate the listpack with the new entry. We use the following
+     * encoding:
+     *
+     * +-----+--------+----------+-------+-------+-/-+-------+-------+--------+
+     * |flags|entry-id|num-fields|field-1|value-1|...|field-N|value-N|lp-count|
+     * +-----+--------+----------+-------+-------+-/-+-------+-------+--------+
+     *
+     * However if the SAMEFIELD flag is set, we have just to populate
+     * the entry with the values, so it becomes:
+     *
+     * +-----+--------+-------+-/-+-------+--------+
+     * |flags|entry-id|value-1|...|value-N|lp-count|
+     * +-----+--------+-------+-/-+-------+--------+
+     * ...
+     * /
+}
+
+```
 
 We can learn from the above source code that when you insert a new item into the `stream` object, it will find the last `listpack` object and keep inserting to this `listpack` until it's full(size exceed `stream-node-max-bytes`(4kb by default) or length exceed `stream-node-max-entries`(100 by default))
 
@@ -121,8 +130,11 @@ We can learn from the above source code that when you insert a new item into the
 
 If we delete the last entry
 
-    127.0.0.1:6379> xdel mystream 1576486352510-0
-    (integer) 1
+```shell script
+127.0.0.1:6379> xdel mystream 1576486352510-0
+(integer) 1
+
+```
 
 ![xdel](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xdel.png)
 
@@ -130,59 +142,71 @@ The only difference is the first bit in the `flag` is set, and the first two ent
 
 The following is part of the source code
 
-    void streamIteratorRemoveEntry(streamIterator *si, streamID *current) {
-        unsigned char *lp = si->lp;
-        int64_t aux;
+```c
+void streamIteratorRemoveEntry(streamIterator *si, streamID *current) {
+    unsigned char *lp = si->lp;
+    int64_t aux;
 
-        /* We do not really delete the entry here. Instead we mark it as
-         * deleted flagging it, and also incrementing the count of the
-         * deleted entries in the listpack header.
-         *
-         * We start flagging: */
-        int flags = lpGetInteger(si->lp_flags);
-        flags |= STREAM_ITEM_FLAG_DELETED;
-        lp = lpReplaceInteger(lp,&si->lp_flags,flags);
+    /* We do not really delete the entry here. Instead we mark it as
+     * deleted flagging it, and also incrementing the count of the
+     * deleted entries in the listpack header.
+     *
+     * We start flagging: */
+    int flags = lpGetInteger(si->lp_flags);
+    flags |= STREAM_ITEM_FLAG_DELETED;
+    lp = lpReplaceInteger(lp,&si->lp_flags,flags);
 
-        /* Change the valid/deleted entries count in the master entry. */
-        unsigned char *p = lpFirst(lp);
+    /* Change the valid/deleted entries count in the master entry. */
+    unsigned char *p = lpFirst(lp);
+    aux = lpGetInteger(p);
+
+    if (aux == 1) {
+        /* If this is the last element in the listpack, we can remove the whole
+         * node. */
+        lpFree(lp);
+        raxRemove(si->stream->rax,si->ri.key,si->ri.key_len,NULL);
+    } else {
+        /* In the base case we alter the counters of valid/deleted entries. */
+        lp = lpReplaceInteger(lp,&p,aux-1);
+        p = lpNext(lp,p); /* Seek deleted field. */
         aux = lpGetInteger(p);
+        lp = lpReplaceInteger(lp,&p,aux+1);
 
-        if (aux == 1) {
-            /* If this is the last element in the listpack, we can remove the whole
-             * node. */
-            lpFree(lp);
-            raxRemove(si->stream->rax,si->ri.key,si->ri.key_len,NULL);
-        } else {
-            /* In the base case we alter the counters of valid/deleted entries. */
-            lp = lpReplaceInteger(lp,&p,aux-1);
-            p = lpNext(lp,p); /* Seek deleted field. */
-            aux = lpGetInteger(p);
-            lp = lpReplaceInteger(lp,&p,aux+1);
-
-            /* Update the listpack with the new pointer. */
-            if (si->lp != lp)
-                raxInsert(si->stream->rax,si->ri.key,si->ri.key_len,lp,NULL);
-        }
-
-        /* Update the number of entries counter. */
-        si->stream->length--;
-        /* ... */
+        /* Update the listpack with the new pointer. */
+        if (si->lp != lp)
+            raxInsert(si->stream->rax,si->ri.key,si->ri.key_len,lp,NULL);
     }
 
+    /* Update the number of entries counter. */
+    si->stream->length--;
+    /* ... */
+}
+
+
+```
 
 If we insert a new entry with same `key` and `value`
 
-    127.0.0.1:6379> xadd mystream 1576486352510-0 key1 val1
-    (error) ERR The ID specified in XADD is equal or smaller than the target stream top item
+```shell script
+127.0.0.1:6379> xadd mystream 1576486352510-0 key1 val1
+(error) ERR The ID specified in XADD is equal or smaller than the target stream top item
+
+```
 
 We can see that even if the specific `ID` is deleted, you are not able to insert to the same key with the deleted `ID`
 
-    127.0.0.1:6379> xadd mystream 1576486352510-1 key1 val1
-    "1576486352510-1"
+```shell script
+127.0.0.1:6379> xadd mystream 1576486352510-1 key1 val1
+"1576486352510-1"
+
+```
 
 You must insert an `ID` bigger than the top item even if the the top item is deleted, because the comparsion is made between the newly inserted `ID` and the `last_id` field, the `last_id` doesn't store information about whether it's deleted or not
 
-	if (use_id && streamCompareID(use_id,&s->last_id) <= 0) return C_ERR;
+```c
+if (use_id && streamCompareID(use_id,&s->last_id) <= 0) return C_ERR;
+
+```
 
 ### xrange
 
@@ -200,20 +224,23 @@ If it's the final element in the current `listpack`, go to find the next key nod
 
 ### xread
 
-    127.0.0.1:6379> XREAD COUNT 5 STREAMS mystream 0
-    1) 1) "mystream"
-       2) 1) 1) "1576480551233-0"
-             2) 1) "key1"
-                2) "128"
-          2) 1) "1576486352510-1"
-             2) 1) "key1"
-                2) "val1"
-    127.0.0.1:6379> XREAD COUNT 5 STREAMS mystream 1576486352510-2
-    (nil)
-    127.0.0.1:6379> XREAD COUNT 5 BLOCK 5000 STREAMS mystream 1576486352510-2
-    (nil)
-    (5.04s)
+```shell script
+127.0.0.1:6379> XREAD COUNT 5 STREAMS mystream 0
+1) 1) "mystream"
+   2) 1) 1) "1576480551233-0"
+         2) 1) "key1"
+            2) "128"
+      2) 1) "1576486352510-1"
+         2) 1) "key1"
+            2) "val1"
+127.0.0.1:6379> XREAD COUNT 5 STREAMS mystream 1576486352510-2
+(nil)
+127.0.0.1:6379> XREAD COUNT 5 BLOCK 5000 STREAMS mystream 1576486352510-2
+(nil)
+(5.04s)
 
+
+```
 
 The `xread` will find out if the current specific `ID` is less than `streams->last_id`, if so, it can return to the client immediately, if not, check the `block` parameter to see whether it should be blocked or not
 
@@ -223,16 +250,22 @@ The alogrithm is the same as the one used in `xrange`
 
 If we create a `consumer group`
 
-    127.0.0.1:6379> XGROUP CREATE mystream my_group 0
-    OK
+```shell script
+127.0.0.1:6379> XGROUP CREATE mystream my_group 0
+OK
+
+```
 
 And create a user for the `consumer group`
 
-    127.0.0.1:6379> XREADGROUP GROUP my_group user1 COUNT 1 STREAMS mystream >
-    1) 1) "mystream"
-       2) 1) 1) "1576480551233-0"
-             2) 1) "key1"
-                2) "128"
+```shell script
+127.0.0.1:6379> XREADGROUP GROUP my_group user1 COUNT 1 STREAMS mystream >
+1) 1) "mystream"
+   2) 1) 1) "1576480551233-0"
+         2) 1) "key1"
+            2) "128"
+
+```
 
 ![xgroup](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xgroup.png)
 
@@ -242,11 +275,14 @@ What's in the `pel` field and `consumers` field of the `streamCG` ?
 
 If  we consume one more item
 
-    127.0.0.1:6379> XREADGROUP GROUP my_group user1 COUNT 1 STREAMS mystream >
-    1) 1) "mystream"
-       2) 1) 1) "1576486352510-1"
-             2) 1) "key1"
-                2) "val1"
+```shell script
+127.0.0.1:6379> XREADGROUP GROUP my_group user1 COUNT 1 STREAMS mystream >
+1) 1) "mystream"
+   2) 1) 1) "1576486352510-1"
+         2) 1) "key1"
+            2) "val1"
+
+```
 
 ![xgroup_inner2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xgroup_inner2.png)
 
@@ -262,17 +298,23 @@ The radix tree stores `ID` as key, and a `streamNACK` as value
 
 The defination
 
-    typedef struct streamNACK {
-        mstime_t delivery_time;     /* Last time this message was delivered. */
-        uint64_t delivery_count;    /* Number of times this message was delivered.*/
-        streamConsumer *consumer;   /* The consumer this message was delivered to
-                                       in the last delivery. */
-    } streamNACK;
+```c
+typedef struct streamNACK {
+    mstime_t delivery_time;     /* Last time this message was delivered. */
+    uint64_t delivery_count;    /* Number of times this message was delivered.*/
+    streamConsumer *consumer;   /* The consumer this message was delivered to
+                                   in the last delivery. */
+} streamNACK;
+
+```
 
 If we ack the first `ID` as proceeded
 
-    127.0.0.1:6379> XACK mystream my_group 1576480551233-0
-    (integer) 1
+```shell script
+127.0.0.1:6379> XACK mystream my_group 1576480551233-0
+(integer) 1
+
+```
 
 ![xgroup_after_xack](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/streams/xgroup_after_xack.png)
 

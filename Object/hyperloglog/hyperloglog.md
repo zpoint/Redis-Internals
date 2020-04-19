@@ -27,19 +27,25 @@ This is the memory layout of a **hyperloglog** data structure
 
 There're totally three kinds of different encodings for the **hyperloglog** data structure
 
-    127.0.0.1:6379> PFADD key1 hello
-    (integer) 1
-    127.0.0.1:6379> OBJECT ENCODING key1
-    "raw"
+```shell script
+127.0.0.1:6379> PFADD key1 hello
+(integer) 1
+127.0.0.1:6379> OBJECT ENCODING key1
+"raw"
+
+```
 
 ![sparse](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse.png)
 
 We can learn that **redis** use [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) for storing the **hyperloglog** data structure, `buf` field in the **sds** can be cast to `hllhdr` pointer directly, the `magic` is a string, it will always be `HYLL`, the one byte `encoding` indicating that whether this **hyperloglog** is a **dense** representation or **sparse** representation
 
-    /* redis/src/hyperloglog.c */
-    #define HLL_DENSE 0 /* Dense encoding. */
-    #define HLL_SPARSE 1 /* Sparse encoding. */
-    #define HLL_RAW 255 /* Only used internally, never exposed. */
+```c
+/* redis/src/hyperloglog.c */
+#define HLL_DENSE 0 /* Dense encoding. */
+#define HLL_SPARSE 1 /* Sparse encoding. */
+#define HLL_RAW 255 /* Only used internally, never exposed. */
+
+```
 
 The current `encoding` is `HLL_SPARSE`
 
@@ -59,16 +65,22 @@ By default **redis** represents **hyperloglog** in a **sparse** format when the 
 
 Those bytes in `registers` fields will be represented as
 
-	XZERO:9216
-    VAL:1,1
-    XZERO:7167
+```c
+XZERO:9216
+VAL:1,1
+XZERO:7167
+
+```
 
 which can be translated to
 
-	/* There're totally 16384 registers, index from 0 to 16383 */
-	Registers 0-9215 are set to 0 (XZERO:9216)
-    1 register set to value 1, that is register 9216 (VAL:1,1)
-    XZERO:7167 (Registers 9217-16383 set to 0) /* 9216 + 7167 = 16383 */
+```c
+/* There're totally 16384 registers, index from 0 to 16383 */
+Registers 0-9215 are set to 0 (XZERO:9216)
+1 register set to value 1, that is register 9216 (VAL:1,1)
+XZERO:7167 (Registers 9217-16383 set to 0) /* 9216 + 7167 = 16383 */
+
+```
 
 This is the layout of the registers after translation, if there're totally 16384 registers and each takes 6 bits to stores an integer value, it will takes `16384 * 6(bits) = 12(kbytes)` (12kb to store just 1 single integer value 1)
 
@@ -78,26 +90,35 @@ But it turns out that only 5 bytes are used in the **sparse** representation
 
 ![sparse_low_registers](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hyperloglog/sparse_low_registers.png)
 
-    127.0.0.1:6379> PFADD key1 world
-    (integer) 1
-    127.0.0.1:6379> PFCOUNT key1
-    (integer) 2
+```shell script
+127.0.0.1:6379> PFADD key1 world
+(integer) 1
+127.0.0.1:6379> PFCOUNT key1
+(integer) 2
+
+```
 
 Now bytes in `registers` fields will be represented as
 
-	XZERO:2742
-    VAL:3,1
-    XZERO:6473
-    VAL:1,1
-    XZERO:7167
+```c
+XZERO:2742
+VAL:3,1
+XZERO:6473
+VAL:1,1
+XZERO:7167
+
+```
 
 which can be translated to
 
-	Registers 0-2741 are set to 0 (XZERO:2742)
-    1 register set to value 3, that is register 2742 (VAL:3,1)
-    XZERO:6473 (Registers 2743-9215 set to 0) /* 2742 + 6473 = 9215 */
-    1 register set to value 1, that is register 9216 (VAL:1,1)
-    XZERO:7167 (Registers 9217-16383 set to 0) /* 9216 + 7167 = 16383 */
+```c
+Registers 0-2741 are set to 0 (XZERO:2742)
+1 register set to value 3, that is register 2742 (VAL:3,1)
+XZERO:6473 (Registers 2743-9215 set to 0) /* 2742 + 6473 = 9215 */
+1 register set to value 1, that is register 9216 (VAL:1,1)
+XZERO:7167 (Registers 9217-16383 set to 0) /* 9216 + 7167 = 16383 */
+
+```
 
 It only takes 8 bytes to represent the 16384 registers in **sparse** way
 
@@ -113,10 +134,13 @@ The **dense** representation will use `6 bits` for each register, `16384 registe
 
 I've set the following line in my configure file for illustration purpose `hll-sparse-max-bytes 0`
 
-    127.0.0.1:6379> PFADD key1 here
-    (integer) 1
-    127.0.0.1:6379> PFCOUNT key1
-    (integer) 3
+```shell script
+127.0.0.1:6379> PFADD key1 here
+(integer) 1
+127.0.0.1:6379> PFCOUNT key1
+(integer) 3
+
+```
 
 Now the layout of the **hyperloglog** data structure becomes
 
@@ -136,7 +160,10 @@ The **PFADD** command will use [murmurhash](https://en.wikipedia.org/wiki/Murmur
 
 For example, when you call
 
-	PFADD key1 hello
+```c
+PFADD key1 hello
+
+```
 
 This is the actual layout of `murmur(hello)` in my little endian machine
 
@@ -156,7 +183,10 @@ The whole `registers` array should looks like the below diagram, though the actu
 
 If you call
 
-	PFADD key1 world
+```c
+PFADD key1 world
+
+```
 
 The result of `murmur(world)` is in the following diagram, the right most 14 bits's value is 2742, and from the 14th to the left most bit, the first `1` occurs in the 16th position, so the `count` will be 3
 
@@ -176,37 +206,40 @@ If there's only one `count`, the result will be inaccuracy, so there are totally
 
 After the computation, the `count` will be cached in the `card` field, next time `PFCOUNT` called the value in `card` will be returned directly
 
-    uint64_t hllCount(struct hllhdr *hdr, int *invalid) {
-        double m = HLL_REGISTERS;
-        double E;
-        int j;
-        int reghisto[64] = {0};
+```c
+uint64_t hllCount(struct hllhdr *hdr, int *invalid) {
+    double m = HLL_REGISTERS;
+    double E;
+    int j;
+    int reghisto[64] = {0};
 
-        /* Compute register histogram */
-        if (hdr->encoding == HLL_DENSE) {
-            hllDenseRegHisto(hdr->registers,reghisto);
-        } else if (hdr->encoding == HLL_SPARSE) {
-            hllSparseRegHisto(hdr->registers,
-                             sdslen((sds)hdr)-HLL_HDR_SIZE,invalid,reghisto);
-        } else if (hdr->encoding == HLL_RAW) {
-            hllRawRegHisto(hdr->registers,reghisto);
-        } else {
-            serverPanic("Unknown HyperLogLog encoding in hllCount()");
-        }
-
-        /* Estimate cardinality form register histogram. See:
-         * "New cardinality estimation algorithms for HyperLogLog sketches"
-         * Otmar Ertl, arXiv:1702.01284 */
-        double z = m * hllTau((m-reghisto[HLL_Q+1])/(double)m);
-        for (j = HLL_Q; j >= 1; --j) {
-            z += reghisto[j];
-            z *= 0.5;
-        }
-        z += m * hllSigma(reghisto[0]/(double)m);
-        E = llroundl(HLL_ALPHA_INF*m*m/z);
-
-        return (uint64_t) E;
+    /* Compute register histogram */
+    if (hdr->encoding == HLL_DENSE) {
+        hllDenseRegHisto(hdr->registers,reghisto);
+    } else if (hdr->encoding == HLL_SPARSE) {
+        hllSparseRegHisto(hdr->registers,
+                         sdslen((sds)hdr)-HLL_HDR_SIZE,invalid,reghisto);
+    } else if (hdr->encoding == HLL_RAW) {
+        hllRawRegHisto(hdr->registers,reghisto);
+    } else {
+        serverPanic("Unknown HyperLogLog encoding in hllCount()");
     }
+
+    /* Estimate cardinality form register histogram. See:
+     * "New cardinality estimation algorithms for HyperLogLog sketches"
+     * Otmar Ertl, arXiv:1702.01284 */
+    double z = m * hllTau((m-reghisto[HLL_Q+1])/(double)m);
+    for (j = HLL_Q; j >= 1; --j) {
+        z += reghisto[j];
+        z *= 0.5;
+    }
+    z += m * hllSigma(reghisto[0]/(double)m);
+    E = llroundl(HLL_ALPHA_INF*m*m/z);
+
+    return (uint64_t) E;
+}
+
+```
 
 # read more
 * [redis源码分析2--hyperloglog 基数统计](https://www.cnblogs.com/lh-ty/p/9972901.html)

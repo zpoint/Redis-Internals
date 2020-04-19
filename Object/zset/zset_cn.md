@@ -21,8 +21,11 @@
 
 ## OBJ_ENCODING_ZIPLIST
 
-    127.0.0.1:6379> zadd zset1 5 val3 -1 val1 -3 val2
-    (integer) 3
+```shell script
+127.0.0.1:6379> zadd zset1 5 val3 -1 val1 -3 val2
+(integer) 3
+
+```
 
 ![zset_ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_ziplist.png)
 
@@ -31,8 +34,11 @@
 
 在配置文件中默认的参数如下
 
-    zset-max-ziplist-entries 128
-    zset-max-ziplist-value 64
+```c
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
+
+```
 
 这两行的意思是如果你的 **zset** 中存储了超过 128 个元素或者其中有任何一个 sds 字符串的长度超过了 64, 那么这个 **ziplist** 会被升级成 **skiplist**
 
@@ -50,10 +56,13 @@
 
 我在我的配置文件下更改了这个值 `zset-max-ziplist-entries 0` 方便演示, 如果你需要了解这个参数的作用, 请参考 [hash 结构的升级](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash_cn.md#%E5%8D%87%E7%BA%A7)
 
-    127.0.0.1:6379> del zset1
-    (integer) 1
-    127.0.0.1:6379> zadd zset1 -1 val1 -3 val2 5 val3 8 val4 9 val5 7 val6 6 val7
-    (integer) 7
+```shell script
+127.0.0.1:6379> del zset1
+(integer) 1
+127.0.0.1:6379> zadd zset1 -1 val1 -3 val2 5 val3 8 val4 9 val5 7 val6 6 val7
+(integer) 7
+
+```
 
 一个符合 [幂律分布](https://baike.baidu.com/item/%E5%B9%82%E5%BE%8B%E5%88%86%E5%B8%83/4281937?fr=aladdin) 的函数被用来生成跳跃表的层数, `ZSKIPLIST_P` 的值为 `0.25`, 生成 2 层的概率是 `3/4`, 生成 3 层的概率是 `1/4 ^ 2`， 以此类推
 
@@ -63,15 +72,18 @@
 
 `ZSKIPLIST_MAXLEVEL` 中的值为 64, 它限定了层数的上限, 你不能生成一个超过 64 层的节点
 
-    /* 生成一个随机的层数给我们将要创建的跳跃表节点用
-     * 这个函数的返回值必须介于 1 到 ZSKIPLIST_MAXLEVEL 之间(两边都是闭区间)
-     * 函数的结果需要符合幂律分布, 层数越高, 概率越低 */
-    int zslRandomLevel(void) {
-        int level = 1;
-        while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
-            level += 1;
-        return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
-    }
+```c
+/* 生成一个随机的层数给我们将要创建的跳跃表节点用
+ * 这个函数的返回值必须介于 1 到 ZSKIPLIST_MAXLEVEL 之间(两边都是闭区间)
+ * 函数的结果需要符合幂律分布, 层数越高, 概率越低 */
+int zslRandomLevel(void) {
+    int level = 1;
+    while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
+        level += 1;
+    return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
+}
+
+```
 
 我在源代码中把 `ZSKIPLIST_P` 的值调高到了 `0.7`(只是为了演示的时候更容易生成更高的层级)
 
@@ -91,5 +103,8 @@
 
 同理一些通过值进行查询的命令(比如 `ZSCORE`) 可以以 O(1) 的复杂度完成, 而不需要在跳跃表中进行线性搜索
 
+```c
 
+
+```
 

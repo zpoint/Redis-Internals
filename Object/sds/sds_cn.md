@@ -46,25 +46,31 @@
 
 (这个 encoding 用来区分 redis 对象的编码方式, 几种不同的 sds 在 sds header 中区分, sds header 区分的是 sds 的存储方式, 他们是两个不同的概念)
 
-	/* redis/src/object.c */
-    /* 选择 44 作为限制是因为在不到 44 个字符的时候, 当我们申请一个 EMBSTR 时最大需要申请的空间会小于 64 bytes
-    比一个 jemalloc 的 arena 单位要小 */
-    #define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
-    robj *createStringObject(const char *ptr, size_t len) {
-        if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
-        	/* OBJ_ENCODING_EMBSTR */
-            return createEmbeddedStringObject(ptr,len);
-        else
-        	/* OBJ_ENCODING_RAW */
-            return createRawStringObject(ptr,len);
-    }
+```c
+/* redis/src/object.c */
+/* 选择 44 作为限制是因为在不到 44 个字符的时候, 当我们申请一个 EMBSTR 时最大需要申请的空间会小于 64 bytes
+比一个 jemalloc 的 arena 单位要小 */
+#define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
+robj *createStringObject(const char *ptr, size_t len) {
+    if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
+    	/* OBJ_ENCODING_EMBSTR */
+        return createEmbeddedStringObject(ptr,len);
+    else
+    	/* OBJ_ENCODING_RAW */
+        return createRawStringObject(ptr,len);
+}
+
+```
 
 ## OBJ_ENCODING_RAW
 
-    127.0.0.1:6379> SET AA "hello world!"
-    OK
-    127.0.0.1:6379> OBJECT ENCODING AA
-    "embstr"
+```shell script
+127.0.0.1:6379> SET AA "hello world!"
+OK
+127.0.0.1:6379> OBJECT ENCODING AA
+"embstr"
+
+```
 
 这是字符串对象 `AA` 的 C 结构体的内存构造
 
@@ -92,10 +98,13 @@
 
 ## OBJ_ENCODING_EMBSTR
 
-    127.0.0.1:6379> SET AA "this is a string longer than 44 characters!!!"
-    OK
-    127.0.0.1:6379> OBJECT ENCODING AA
-    "raw"
+```shell script
+127.0.0.1:6379> SET AA "this is a string longer than 44 characters!!!"
+OK
+127.0.0.1:6379> OBJECT ENCODING AA
+"raw"
+
+```
 
 如果你创建了一个超过 44 字节的字符串对象, encoding 就会跟着一起改变
 
@@ -105,77 +114,92 @@
 
 ## REDIS_ENCODING_INT
 
-    127.0.0.1:6379> SET AA 13
-    OK
-    127.0.0.1:6379> OBJECT ENCODING AA
-    "int"
+```shell script
+127.0.0.1:6379> SET AA 13
+OK
+127.0.0.1:6379> OBJECT ENCODING AA
+"int"
+
+```
 
 此时的 **refcount** 为 **UINT_MAX**, **ptr** 存储的是真正的整数值, 以 **long** 的方式存储
 
 ![int_str](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/int_str.png)
 
-	/* redis/src/object.c */
-    len = sdslen(s);
-    if (len <= 20 && string2l(s,len,&value)) {
-        /* 这个对象的编码方式是 long, 尝试使用公共的 long 对象而不是自己创建一个
-           注意当设置了 maxmemory 时不会尝试使用公用对象
-           因为每一个对象都会有一个自己的 LRU 字段才能使得 LRU 淘汰算法正常工作, 这些公有的对象会影响淘汰结果 */
-        if ((server.maxmemory == 0 ||
-            !(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&
-            value >= 0 &&
-            value < OBJ_SHARED_INTEGERS)
-        {
-            decrRefCount(o);
-            incrRefCount(shared.integers[value]);
-            return shared.integers[value];
-        } else {
-            if (o->encoding == OBJ_ENCODING_RAW) sdsfree(o->ptr);
-            o->encoding = OBJ_ENCODING_INT;
-            o->ptr = (void*) value;
-            return o;
-        }
+```c
+/* redis/src/object.c */
+len = sdslen(s);
+if (len <= 20 && string2l(s,len,&value)) {
+    /* 这个对象的编码方式是 long, 尝试使用公共的 long 对象而不是自己创建一个
+       注意当设置了 maxmemory 时不会尝试使用公用对象
+       因为每一个对象都会有一个自己的 LRU 字段才能使得 LRU 淘汰算法正常工作, 这些公有的对象会影响淘汰结果 */
+    if ((server.maxmemory == 0 ||
+        !(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&
+        value >= 0 &&
+        value < OBJ_SHARED_INTEGERS)
+    {
+        decrRefCount(o);
+        incrRefCount(shared.integers[value]);
+        return shared.integers[value];
+    } else {
+        if (o->encoding == OBJ_ENCODING_RAW) sdsfree(o->ptr);
+        o->encoding = OBJ_ENCODING_INT;
+        o->ptr = (void*) value;
+        return o;
     }
+}
+
+```
 
 从上面的代码我们可以看出, 当设置的字符串对象长度 <= 20 个字符时并且能成功转换为 long 值时, 会以 long 的方式存储在 **ptr** 中
 
 我们来验证下上面的设想是否正确, `long` 在我的机器上是 64 个 bit 表示的, `1 << 63` 的值为 `9223372036854775808`, 因为 `long` 是一个有符号的值, 所以 `long` 能表示的最大的值为 `(1 << 63) - 1`
 
-    127.0.0.1:6379> SET AA 9223372036854775806
-    OK
-    127.0.0.1:6379> OBJECT ENCODING AA
-    "int"
-    127.0.0.1:6379> INCR AA
-    (integer) 9223372036854775807
+```shell script
+127.0.0.1:6379> SET AA 9223372036854775806
+OK
+127.0.0.1:6379> OBJECT ENCODING AA
+"int"
+127.0.0.1:6379> INCR AA
+(integer) 9223372036854775807
+
+```
 
 如果我们再增加一次, 就会产生上溢, 你需要用 `SET` 命令来设置这个新的值并且 redis 会以 `embstr` 的编码方式存储
 
-    127.0.0.1:6379> INCR AA
-    (error) ERR increment or decrement would overflow
-    127.0.0.1:6379> SET AA 9223372036854775808
-    OK
-    127.0.0.1:6379> OBJECT ENCODING AA
-    "embstr"
+```shell script
+127.0.0.1:6379> INCR AA
+(error) ERR increment or decrement would overflow
+127.0.0.1:6379> SET AA 9223372036854775808
+OK
+127.0.0.1:6379> OBJECT ENCODING AA
+"embstr"
+
+```
 
 # string header
 
 根据字符串不同的实际长度, 会使用不同的 sds 类型
 
-	redis/src/sds.c
-    static inline char sdsReqType(size_t string_size) {
-        if (string_size < 1<<5)
-            return SDS_TYPE_5;
-        if (string_size < 1<<8)
-            return SDS_TYPE_8;
-        if (string_size < 1<<16)
-            return SDS_TYPE_16;
-    #if (LONG_MAX == LLONG_MAX)
-        if (string_size < 1ll<<32)
-            return SDS_TYPE_32;
-        return SDS_TYPE_64;
-    #else
+```c
+redis/src/sds.c
+static inline char sdsReqType(size_t string_size) {
+    if (string_size < 1<<5)
+        return SDS_TYPE_5;
+    if (string_size < 1<<8)
+        return SDS_TYPE_8;
+    if (string_size < 1<<16)
+        return SDS_TYPE_16;
+#if (LONG_MAX == LLONG_MAX)
+    if (string_size < 1ll<<32)
         return SDS_TYPE_32;
-    #endif
-    }
+    return SDS_TYPE_64;
+#else
+    return SDS_TYPE_32;
+#endif
+}
+
+```
 
 ## sdshdr5
 
@@ -187,8 +211,11 @@
 
 **sdshdr8** 用 **uint_8**(1 个字节) 来存储 **len** 和 **alloc**
 
-    127.0.0.1:6379> SET AA "hello"
-    OK
+```shell script
+127.0.0.1:6379> SET AA "hello"
+OK
+
+```
 
 ![sdshdr8](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sdshdr8.png)
 

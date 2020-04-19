@@ -40,10 +40,13 @@
 
 我们来看一个简单的示例
 
-    127.0.0.1:6379> HSET AA key1 33
-    (integer) 1
-    127.0.0.1:6379> OBJECT ENCODING AA
-    "ziplist"
+```shell script
+127.0.0.1:6379> HSET AA key1 33
+(integer) 1
+127.0.0.1:6379> OBJECT ENCODING AA
+"ziplist"
+
+```
 
 ![simple_hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/simple_hash.png)
 
@@ -93,17 +96,23 @@
 
 ![empty_ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/empty_ziplist.png)
 
-    127.0.0.1:6379> HSET AA key1 val1
-    (integer) 1
-    127.0.0.1:6379> HSET AA key2 123
-    (integer) 1
+```shell script
+127.0.0.1:6379> HSET AA key1 val1
+(integer) 1
+127.0.0.1:6379> HSET AA key2 123
+(integer) 1
+
+```
 
 ![two_value_ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/two_value_ziplist.png)
 
 #### 读取
 
-    127.0.0.1:6379> HGET AA key2
-    "123"
+```shell script
+127.0.0.1:6379> HGET AA key2
+"123"
+
+```
 
 `hget` 命令会遍历这个 `ziplist`, 根据 `encoding` 提取出 `entry data` 中的内容, 之后检查内容是否匹配, 它是一个 O(n) 的线性搜索
 
@@ -111,17 +120,23 @@
 
 这是更新键值的代码片段
 
-	/* redis/src/t_hash.c */
-    /* Delete value */
-    zl = ziplistDelete(zl, &vptr);
+```c
+/* redis/src/t_hash.c */
+/* Delete value */
+zl = ziplistDelete(zl, &vptr);
 
-    /* Insert new value */
-    zl = ziplistInsert(zl, vptr, (unsigned char*)value, sdslen(value));
+/* Insert new value */
+zl = ziplistInsert(zl, vptr, (unsigned char*)value, sdslen(value));
+
+```
 
 我们来看一个示例
 
-    127.0.0.1:6379> HSET AA key1 val_new
-    (integer) 0
+```shell script
+127.0.0.1:6379> HSET AA key1 val_new
+(integer) 0
+
+```
 
 首先是删除旧的值
 
@@ -164,20 +179,23 @@
 
 ### 升级
 
-	/* redis/src/t_hash.c */
-    /* 在 hset 中执行 */
-    for (i = start; i <= end; i++) {
-        if (sdsEncodedObject(argv[i]) &&
-            sdslen(argv[i]->ptr) > server.hash_max_ziplist_value)
-        {
-            hashTypeConvert(o, OBJ_ENCODING_HT);
-            break;
-        }
-    }
-	/* ... */
-    /* 检查 ziplist 是否需要被转换为 hash table */
-    if (hashTypeLength(o) > server.hash_max_ziplist_entries)
+```c
+/* redis/src/t_hash.c */
+/* 在 hset 中执行 */
+for (i = start; i <= end; i++) {
+    if (sdsEncodedObject(argv[i]) &&
+        sdslen(argv[i]->ptr) > server.hash_max_ziplist_value)
+    {
         hashTypeConvert(o, OBJ_ENCODING_HT);
+        break;
+    }
+}
+/* ... */
+/* 检查 ziplist 是否需要被转换为 hash table */
+if (hashTypeLength(o) > server.hash_max_ziplist_entries)
+    hashTypeConvert(o, OBJ_ENCODING_HT);
+
+```
 
 如果插入的对象类型为 [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md) 并且 sds 长度大于 `hash-max-ziplist-value` (你可以在配置文件中进行设置, 默认值为64), 当前的 `ziplist` 就会被转换为 hash table(`OBJ_ENCODING_HT`)
 
@@ -187,7 +205,10 @@
 
 我在配置文件配置了如下这行 `hash-max-ziplist-entries 0`
 
-	hset AA key1 12
+```c
+hset AA key1 12
+
+```
 
 这是设置了一个键对值之后的构造
 
@@ -201,14 +222,20 @@ redis 目前使用 [SipHash 1-2](https://en.wikipedia.org/wiki/SipHash)(文件�
 
 并且哈希函数的 seed 是在 redis 服务启动时初始化的
 
-	/* redis/src/server.c */
-    char hashseed[16];
-    getRandomHexChars(hashseed,sizeof(hashseed));
-    dictSetHashFunctionSeed((uint8_t*)hashseed);
+```c
+/* redis/src/server.c */
+char hashseed[16];
+getRandomHexChars(hashseed,sizeof(hashseed));
+dictSetHashFunctionSeed((uint8_t*)hashseed);
+
+```
 
 由于 **hashseed** 是随机生成的, 在不同的 redis 实例之间, 或者同个 redis 实例重启之后, 即使是相同的 key 哈希的结果也是不同的, 你无法预测这个 key 会被哈希到表的哪一个桶上
 
-	hset AA zzz val2
+```c
+hset AA zzz val2
+
+```
 
 CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoint/CPython-Internals/blob/master/BasicObject/dict/dict_cn.md#%E5%93%88%E5%B8%8C%E7%A2%B0%E6%92%9E%E4%B8%8E%E5%88%A0%E9%99%A4), redis 使用的是单向链表
 
@@ -216,7 +243,10 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
 
 ![dict_collision](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/dict_collision.png)
 
-	hdel AA zzz
+```c
+hdel AA zzz
+
+```
 
 删除操作会找到对应的键对值删除, 并且在必要时调整哈希表的大小
 
@@ -226,80 +256,92 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
 
 在每一次字典插入时, 函数 `_dictExpandIfNeeded` 都会被调用
 
-	/* redis/src/dict.c */
-    /* 需要时扩展哈希表 */
-    static int _dictExpandIfNeeded(dict *d)
-    {
-        /* 渐进式 rehash 正在进行中, 直接返回 */
-        if (dictIsRehashing(d)) return DICT_OK;
+```c
+/* redis/src/dict.c */
+/* 需要时扩展哈希表 */
+static int _dictExpandIfNeeded(dict *d)
+{
+    /* 渐进式 rehash 正在进行中, 直接返回 */
+    if (dictIsRehashing(d)) return DICT_OK;
 
-        /* 如果哈希表为空, 把它初始化为默认大小. */
-        if (d->ht[0].size == 0) return dictExpand(d, DICT_HT_INITIAL_SIZE);
-        /* 如果达到了 1:1 的比例, 并且我们可以调整哈希表的大小,
-           或者当前的负载比例已经超过了设定的安全范围, 我们就会把哈希表的大小调整为原先的 2 倍 */
-        if (d->ht[0].used >= d->ht[0].size &&
-            (dict_can_resize ||
-             d->ht[0].used/d->ht[0].size > dict_force_resize_ratio))
-        {
-            return dictExpand(d, d->ht[0].used*2);
-        }
-        return DICT_OK;
+    /* 如果哈希表为空, 把它初始化为默认大小. */
+    if (d->ht[0].size == 0) return dictExpand(d, DICT_HT_INITIAL_SIZE);
+    /* 如果达到了 1:1 的比例, 并且我们可以调整哈希表的大小,
+       或者当前的负载比例已经超过了设定的安全范围, 我们就会把哈希表的大小调整为原先的 2 倍 */
+    if (d->ht[0].used >= d->ht[0].size &&
+        (dict_can_resize ||
+         d->ht[0].used/d->ht[0].size > dict_force_resize_ratio))
+    {
+        return dictExpand(d, d->ht[0].used*2);
     }
+    return DICT_OK;
+}
+
+```
 
 为了最大程序提高服务性能, 降低响应延时, **redis** 在字典中实现了 [渐进式 resizing](https://en.wikipedia.org/wiki/Hash_table#Incremental_resizing) 策略, 整个调整的过程并不是一次请求或者一次函数调用就完成的, 而是在每一次增删改查操作中一点一点完成的
 
 我们来看个示例
 
-    127.0.0.1:6379> del AA
-    (integer) 1
-    127.0.0.1:6379> hset AA 1 2
-    (integer) 1
-    127.0.0.1:6379> hset AA 2 2
-    (integer) 1
-    127.0.0.1:6379> hset AA 3 2
-    (integer) 1
-    127.0.0.1:6379> hset AA 4 2
-    (integer) 1
+```shell script
+127.0.0.1:6379> del AA
+(integer) 1
+127.0.0.1:6379> hset AA 1 2
+(integer) 1
+127.0.0.1:6379> hset AA 2 2
+(integer) 1
+127.0.0.1:6379> hset AA 3 2
+(integer) 1
+127.0.0.1:6379> hset AA 4 2
+(integer) 1
+
+```
 
 ![resize_before](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_before.png)
 
+```shell script
 
-    127.0.0.1:6379> hset AA 5 2
-    (integer) 1
+127.0.0.1:6379> hset AA 5 2
+(integer) 1
+
+```
 
 这一次我们插入新的 entry 时, `_dictExpandIfNeeded` 同样会被调用, 并且此时 `d->ht[0].used >= d->ht[0].size` 的判断为真, `dictExpand` 会新建一个 2 倍大小的哈希表, 并且把这张表存储到 `d->ht[1]` 中
 
-	/* redis/src/dict.c */
-    /* 扩展或创建哈希表 */
-    int dictExpand(dict *d, unsigned long size)
-    {
-        / * 如果 size 比哈希表中存储的元素还要小, 那么这个 size 是非法的 */
-        if (dictIsRehashing(d) || d->ht[0].used > size)
-            return DICT_ERR;
+```c
+/* redis/src/dict.c */
+/* 扩展或创建哈希表 */
+int dictExpand(dict *d, unsigned long size)
+{
+    / * 如果 size 比哈希表中存储的元素还要小, 那么这个 size 是非法的 */
+    if (dictIsRehashing(d) || d->ht[0].used > size)
+        return DICT_ERR;
 
-        dictht n; /* 新的哈希表 */
-        unsigned long realsize = _dictNextPower(size);
+    dictht n; /* 新的哈希表 */
+    unsigned long realsize = _dictNextPower(size);
 
-        /* Rehash 到的新表的大小不能和旧表大小一样 */
-        if (realsize == d->ht[0].size) return DICT_ERR;
+    /* Rehash 到的新表的大小不能和旧表大小一样 */
+    if (realsize == d->ht[0].size) return DICT_ERR;
 
-        /* 为新的哈希表分配空间, 并且把所有的指针初始化为空指针 */
-        n.size = realsize;
-        n.sizemask = realsize-1;
-        n.table = zcalloc(realsize*sizeof(dictEntry*));
-        n.used = 0;
+    /* 为新的哈希表分配空间, 并且把所有的指针初始化为空指针 */
+    n.size = realsize;
+    n.sizemask = realsize-1;
+    n.table = zcalloc(realsize*sizeof(dictEntry*));
+    n.used = 0;
 
-        /* 如果是第一次调用这个函数分配表空间, 严格意义上这不是 rehash, 只用把表设置到 ht[0] 上即可 */
-        if (d->ht[0].table == NULL) {
-            d->ht[0] = n;
-            return DICT_OK;
-        }
-
-        /* 把创建的表设置到 ht[1] 上这样可以进行渐进式 rehash */
-        d->ht[1] = n;
-        d->rehashidx = 0;
+    /* 如果是第一次调用这个函数分配表空间, 严格意义上这不是 rehash, 只用把表设置到 ht[0] 上即可 */
+    if (d->ht[0].table == NULL) {
+        d->ht[0] = n;
         return DICT_OK;
     }
+
+    /* 把创建的表设置到 ht[1] 上这样可以进行渐进式 rehash */
+    d->ht[1] = n;
+    d->rehashidx = 0;
+    return DICT_OK;
+}
+
+```
 
 因为 `rehashidx` 的值不是 -1, 新的 `entry` 插入到 `ht[1]` 中
 
@@ -307,22 +349,31 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
 
 当 `rehashidx` 的值不是 -1 时, 每一个增删改查操作都会调用一次 `rehash` 函数
 
-    127.0.0.1:6379> hget AA 5
-    "2"
+```shell script
+127.0.0.1:6379> hget AA 5
+"2"
+
+```
 
 你可以发现 `rehashidx` 变成了 1, 并且在哈希表中的 index[1] 上的整个桶都被移到了第二张表中
 
 ![resize_middle2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle2.png)
 
-    127.0.0.1:6379> hget AA not_exist
-    (nil)
+```shell script
+127.0.0.1:6379> hget AA not_exist
+(nil)
+
+```
 
 `rehashidx` 现在变成了 3
 
 ![resize_middle3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_middle3.png)
 
-	127.0.0.1:6379> hget AA 5
-	"2"
+```shell script
+127.0.0.1:6379> hget AA 5
+"2"
+
+```
 
 当哈希表中 index[3] 上的整个桶都迁移完成时, 这个哈希表也完整的迁移过去了, `rehashidx` 再次设置为 -1, 并且旧的表会被释放
 
@@ -332,53 +383,56 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
 
 ![resize_done_reverse](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/resize_done_reverse.png)
 
+```c
 
-	/* redis/src/dict.c */
-    int dictRehash(dict *d, int n) {
-        /* 每次执行 HGET 命令时, n 为 1 */
-        int empty_visits = n*10; /* 最多只会处理这么多个哈希表上的空桶 */
-        if (!dictIsRehashing(d)) return 0;
+/* redis/src/dict.c */
+int dictRehash(dict *d, int n) {
+    /* 每次执行 HGET 命令时, n 为 1 */
+    int empty_visits = n*10; /* 最多只会处理这么多个哈希表上的空桶 */
+    if (!dictIsRehashing(d)) return 0;
 
-        while(n-- && d->ht[0].used != 0) {
-            /* rehash n 个桶 */
-            dictEntry *de, *nextde;
-            /* 注意, rehashidx 不能溢出 */
-            assert(d->ht[0].size > (unsigned long)d->rehashidx);
-            while(d->ht[0].table[d->rehashidx] == NULL) {
-                /* 这个桶是空的的话, 跳过它 */
-                d->rehashidx++;
-                if (--empty_visits == 0) return 1;
-            }
-            de = d->ht[0].table[d->rehashidx];
-            /* 把这个桶上的所有的元素都移动到新的哈希表上 */
-            while(de) {
-                uint64_t h;
-
-                nextde = de->next;
-                /* 计算一下在新的表上的哈希值 */
-                h = dictHashKey(d, de->key) & d->ht[1].sizemask;
-                de->next = d->ht[1].table[h];
-                d->ht[1].table[h] = de;
-                d->ht[0].used--;
-                d->ht[1].used++;
-                de = nextde;
-            }
-            d->ht[0].table[d->rehashidx] = NULL;
+    while(n-- && d->ht[0].used != 0) {
+        /* rehash n 个桶 */
+        dictEntry *de, *nextde;
+        /* 注意, rehashidx 不能溢出 */
+        assert(d->ht[0].size > (unsigned long)d->rehashidx);
+        while(d->ht[0].table[d->rehashidx] == NULL) {
+            /* 这个桶是空的的话, 跳过它 */
             d->rehashidx++;
+            if (--empty_visits == 0) return 1;
         }
+        de = d->ht[0].table[d->rehashidx];
+        /* 把这个桶上的所有的元素都移动到新的哈希表上 */
+        while(de) {
+            uint64_t h;
 
-        /* 检查是否 rehash 已经完成(是否整张表都迁移完成) */
-        if (d->ht[0].used == 0) {
-            zfree(d->ht[0].table);
-            d->ht[0] = d->ht[1];
-            _dictReset(&d->ht[1]);
-            d->rehashidx = -1;
-            return 0;
+            nextde = de->next;
+            /* 计算一下在新的表上的哈希值 */
+            h = dictHashKey(d, de->key) & d->ht[1].sizemask;
+            de->next = d->ht[1].table[h];
+            d->ht[1].table[h] = de;
+            d->ht[0].used--;
+            d->ht[1].used++;
+            de = nextde;
         }
-
-        /* 本次处理完成, 但是还有待迁移的元素 */
-        return 1;
+        d->ht[0].table[d->rehashidx] = NULL;
+        d->rehashidx++;
     }
+
+    /* 检查是否 rehash 已经完成(是否整张表都迁移完成) */
+    if (d->ht[0].used == 0) {
+        zfree(d->ht[0].table);
+        d->ht[0] = d->ht[1];
+        _dictReset(&d->ht[1]);
+        d->rehashidx = -1;
+        return 0;
+    }
+
+    /* 本次处理完成, 但是还有待迁移的元素 */
+    return 1;
+}
+
+```
 
 ### activerehashing
 
@@ -392,21 +446,24 @@ CPython 使用了 [一个探针算法处理哈希碰撞](https://github.com/zpoi
 
 redis 服务主表使用哈希表结构存储你设置的所有键对值, 如我们上面所了解的, 哈希表并不会在达到某个阈值之后一次性的扩容完成, 而是在你搜索/更改这张表的时候渐进式的完成扩容, `activerehashing` 这个配置会在主循环中用到, 用来处理闲置的 redis 服务无法完成 rehash 的情况
 
+```c
 
-	/* redis/src/server.c */
-    /* Rehash */
-    if (server.activerehashing) {
-        for (j = 0; j < dbs_per_call; j++) {
-            /* 每次调用这个函数的时候, 尝试使用 1 毫秒(CPU 时间) 来处理 rehah */
-            int work_done = incrementallyRehash(rehash_db);
-            if (work_done) {
-                /* 如果当前的 rehash_db 处理了 1 毫秒的 rehash, 跳出, 下次主循环(100ms后)再来处理
-                break;
-            } else {
-                /* 如果这个 rehash_db 不需要进行 rehash, 我们会尝试下一个 rehash_db */
-                rehash_db++;
-                rehash_db %= server.dbnum;
-            }
+/* redis/src/server.c */
+/* Rehash */
+if (server.activerehashing) {
+    for (j = 0; j < dbs_per_call; j++) {
+        /* 每次调用这个函数的时候, 尝试使用 1 毫秒(CPU 时间) 来处理 rehah */
+        int work_done = incrementallyRehash(rehash_db);
+        if (work_done) {
+            /* 如果当前的 rehash_db 处理了 1 毫秒的 rehash, 跳出, 下次主循环(100ms后)再来处理
+            break;
+        } else {
+            /* 如果这个 rehash_db 不需要进行 rehash, 我们会尝试下一个 rehash_db */
+            rehash_db++;
+            rehash_db %= server.dbnum;
         }
     }
+}
+
+```
 

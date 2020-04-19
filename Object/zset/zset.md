@@ -21,8 +21,11 @@
 
 ## OBJ_ENCODING_ZIPLIST
 
-    127.0.0.1:6379> zadd zset1 5 val3 -1 val1 -3 val2
-    (integer) 3
+```shell script
+127.0.0.1:6379> zadd zset1 5 val3 -1 val1 -3 val2
+(integer) 3
+
+```
 
 ![zset_ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_ziplist.png)
 
@@ -31,8 +34,11 @@ A [ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.
 
 The default parameters in configure file is
 
-    zset-max-ziplist-entries 128
-    zset-max-ziplist-value 64
+```c
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
+
+```
 
 It means if you have more than 128 elements in your **zset** or the sds string length of any of the element is longer than 64, the **ziplist** will be upgraded to **skiplist**
 
@@ -50,10 +56,13 @@ We can learn from the above picture that **zset** will store both [hash table](h
 
 I've set this line `zset-max-ziplist-entries 0` in my configure file, if you need information about the meaning of this line, please refer to [upgrade in hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#upgrade)
 
-    127.0.0.1:6379> del zset1
-    (integer) 1
-    127.0.0.1:6379> zadd zset1 -1 val1 -3 val2 5 val3 8 val4 9 val5 7 val6 6 val7
-    (integer) 7
+```shell script
+127.0.0.1:6379> del zset1
+(integer) 1
+127.0.0.1:6379> zadd zset1 -1 val1 -3 val2 5 val3 8 val4 9 val5 7 val6 6 val7
+(integer) 7
+
+```
 
 A [Power law](https://en.wikipedia.org/wiki/Power_law) like function is used for generating the level, value of `ZSKIPLIST_P` is `0.25`, The probability of level 2 is `3/4`, level 3 is `1/4 ^ 2`, and so on
 
@@ -63,18 +72,21 @@ There are less probability to get higher level and high probability to get lower
 
 Value in `ZSKIPLIST_MAXLEVEL` is 64, it means there can't be more than 64 levels
 
+```c
 
-    /* Returns a random level for the new skiplist node we are going to create.
-     * The return value of this function is between 1 and ZSKIPLIST_MAXLEVEL
-     * (both inclusive), with a powerlaw-alike distribution where higher
-     * levels are less likely to be returned. */
-    int zslRandomLevel(void) {
-        int level = 1;
-        while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
-            level += 1;
-        return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
-    }
+/* Returns a random level for the new skiplist node we are going to create.
+ * The return value of this function is between 1 and ZSKIPLIST_MAXLEVEL
+ * (both inclusive), with a powerlaw-alike distribution where higher
+ * levels are less likely to be returned. */
+int zslRandomLevel(void) {
+    int level = 1;
+    while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
+        level += 1;
+    return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
+}
 
+
+```
 
 I've set `ZSKIPLIST_P` to a lower value `0.7` so that it's more likely to generate higher level(only for illustration purpose)
 
@@ -94,7 +106,10 @@ The entry in hash table stores the address of **score** field, which is a pointe
 
 So that in some command(i.e `ZSCORE`) you are able to find value and score by key in O(1) in the **hash table** instead of log(N) in **skiplist**
 
+```c
 
 
 
+
+```
 

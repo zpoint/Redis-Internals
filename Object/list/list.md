@@ -47,10 +47,13 @@ from [redis quicklist visions](https://matt.sh/redis-quicklist-visions)
 
 ## OBJ_ENCODING_QUICKLIST
 
-    127.0.0.1:6379> lpush lst 123 456
-    (integer) 2
-    127.0.0.1:6379> object encoding lst
-    "quicklist"
+```shell script
+127.0.0.1:6379> lpush lst 123 456
+(integer) 2
+127.0.0.1:6379> object encoding lst
+"quicklist"
+
+```
 
 ![example](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/example.png)
 
@@ -138,15 +141,21 @@ from `redis.conf`, it's a configurable parameter named `list-compress-depth`, de
 
 Let's set the folloing two lines in the configure file
 
-	list-max-ziplist-size 3
-    list-compress-depth 0
+```c
+list-max-ziplist-size 3
+list-compress-depth 0
+
+```
 
 In the redis client command line
 
-    127.0.0.1:6379> del lst
-    (integer) 1
-    127.0.0.1:6379> lpush lst val1 123 456
-    (integer) 3
+```shell script
+127.0.0.1:6379> del lst
+(integer) 1
+127.0.0.1:6379> lpush lst val1 123 456
+(integer) 3
+
+```
 
 ![max_size_1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/max_size_1.png)
 
@@ -154,8 +163,11 @@ In the redis client command line
 
 If we insert again
 
-    127.0.0.1:6379> lpush lst 789
-    (integer) 4
+```shell script
+127.0.0.1:6379> lpush lst 789
+(integer) 4
+
+```
 
 Because elements in the first node is greater or equal than `fill`, a new node will be created
 
@@ -167,60 +179,75 @@ Because elements in the first node is greater or equal than `fill`, a new node w
 
 This is the compress function for **quicklistNode**
 
-	/* redis/src/quicklist.c */
-    REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
-    #ifdef REDIS_TEST
-        node->attempted_compress = 1;
-    #endif
+```c
+/* redis/src/quicklist.c */
+REDIS_STATIC int __quicklistCompressNode(quicklistNode *node) {
+#ifdef REDIS_TEST
+    node->attempted_compress = 1;
+#endif
 
-        /* Don't bother compressing small values */
-        /* It's 48 bytes in default */
-        if (node->sz < MIN_COMPRESS_BYTES)
-            return 0;
-        /* Allocate memory for compressed result, the allocated size is the
-        * origin uncompressed size + lzf header size */
-        quicklistLZF *lzf = zmalloc(sizeof(*lzf) + node->sz);
+    /* Don't bother compressing small values */
+    /* It's 48 bytes in default */
+    if (node->sz < MIN_COMPRESS_BYTES)
+        return 0;
+    /* Allocate memory for compressed result, the allocated size is the
+    * origin uncompressed size + lzf header size */
+    quicklistLZF *lzf = zmalloc(sizeof(*lzf) + node->sz);
 
-        /* Cancel if compression fails or doesn't compress small enough */
-        if (((lzf->sz = lzf_compress(node->zl, node->sz, lzf->compressed,
-                                     node->sz)) == 0) ||
-            lzf->sz + MIN_COMPRESS_IMPROVE >= node->sz) {
-            /* lzf_compress aborts/rejects compression if value not compressable. */
-            zfree(lzf);
-            return 0;
-        }
-        /* Compress successfully, adjust the memory block to fit the real compressed size */
-        lzf = zrealloc(lzf, sizeof(*lzf) + lzf->sz);
-        /* Free the origin node's ziplist */
-        free(node->zl);
-        /* Store the new compressed result to zl */
-        node->zl = (unsigned char *)lzf;
-        /* Flag indicate the ziplist need to be compressed */
-        node->encoding = QUICKLIST_NODE_ENCODING_LZF;
-        /* Flag indicate the ziplist is compressed */
-        node->recompress = 0;
-        return 1;
+    /* Cancel if compression fails or doesn't compress small enough */
+    if (((lzf->sz = lzf_compress(node->zl, node->sz, lzf->compressed,
+                                 node->sz)) == 0) ||
+        lzf->sz + MIN_COMPRESS_IMPROVE >= node->sz) {
+        /* lzf_compress aborts/rejects compression if value not compressable. */
+        zfree(lzf);
+        return 0;
     }
+    /* Compress successfully, adjust the memory block to fit the real compressed size */
+    lzf = zrealloc(lzf, sizeof(*lzf) + lzf->sz);
+    /* Free the origin node's ziplist */
+    free(node->zl);
+    /* Store the new compressed result to zl */
+    node->zl = (unsigned char *)lzf;
+    /* Flag indicate the ziplist need to be compressed */
+    node->encoding = QUICKLIST_NODE_ENCODING_LZF;
+    /* Flag indicate the ziplist is compressed */
+    node->recompress = 0;
+    return 1;
+}
+
+```
 
 I've set the following two line in configure file
 
-	list-max-ziplist-size 4
-    list-compress-depth 1
+```c
+list-max-ziplist-size 4
+list-compress-depth 1
+
+```
 
 and modify the source code and recompile for illustration
 
-	#define MIN_COMPRESS_BYTES 1
-    #define MIN_COMPRESS_IMPROVE 0
+```c
+#define MIN_COMPRESS_BYTES 1
+#define MIN_COMPRESS_IMPROVE 0
+
+```
 
 In the redis client command line
 
-    127.0.0.1:6379> lpush lst aa1 aa2 aa3 aa4 bb1 bb2 bb3 bb4
-    (integer) 8
+```shell script
+127.0.0.1:6379> lpush lst aa1 aa2 aa3 aa4 bb1 bb2 bb3 bb4
+(integer) 8
+
+```
 
 ![compress1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/compress1.png)
 
-    127.0.0.1:6379> lpush lst cc1 cc2 cc3 cc4
-    (integer) 12
+```shell script
+127.0.0.1:6379> lpush lst cc1 cc2 cc3 cc4
+(integer) 12
+
+```
 
 because the `list-compress-depth` is 1, the first **quicklistNode** in each side won't be compressed, the second, third, and so forth will be checked in it needs to be compressed
 
@@ -239,20 +266,29 @@ if you insert a new item to a **quicklist**
 
 Let's insert to the middle of a list
 
-	list-max-ziplist-size 3
-    list-compress-depth 0
+```c
+list-max-ziplist-size 3
+list-compress-depth 0
+
+```
 
 In the redis command line
 
-    127.0.0.1:6379> del lst
-    (integer) 1
-    127.0.0.1:6379> lpush lst aa1 aa2 aa3 bb1 bb2 bb3 cc1 cc2 cc3
-    (integer) 8
+```shell script
+127.0.0.1:6379> del lst
+(integer) 1
+127.0.0.1:6379> lpush lst aa1 aa2 aa3 bb1 bb2 bb3 cc1 cc2 cc3
+(integer) 8
+
+```
 
 ![insert_middle](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/list/insert_middle.png)
 
-    127.0.0.1:6379> linsert lst after bb2 123
-    (integer) 10
+```shell script
+127.0.0.1:6379> linsert lst after bb2 123
+(integer) 10
+
+```
 
 Because the **quicklistNode** owns value **bb2** is full, it will be splited
 
