@@ -29,7 +29,7 @@
 
 # 概览
 
-Redis 的 `streams` 结构在版本号 5.0 以后引入, 是一伙人有点类似消息队列的结构, 它抽象的模拟了日志系统的结构, 如果你需要了解更多的相关介绍和使用方法, 请参考 [Introduction to Redis Streams](https://redis.io/topics/streams-intro)
+Redis 的 `streams` 结构在版本号 5.0 以后引入, 它抽象的模拟了日志系统的结构, 如果你需要了解更多的相关介绍和使用方法, 请参考 [Introduction to Redis Streams](https://redis.io/topics/streams-intro)
 
 红色标记的是 `streams` 结构的基本构造
 

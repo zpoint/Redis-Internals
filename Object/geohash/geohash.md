@@ -58,7 +58,39 @@ In our example, lat_offset is `(22.543764 - (-85.05112878))/(85.05112878 - (-85.
 
 lon_offset is `(113.936698 - (-180))/(180 - (-180))` which is `0.816491`
 
-The default `step` is `26`, so the last line will be `hash->bits = interleave64(42448413.855534, 54793771.918586); `
+The default `step` is `26`, so the last line will be `hash->bits = interleave64(42448413, 54793771); `
+
+```c
+static inline uint64_t interleave64(uint32_t xlo, uint32_t ylo) {
+    static const uint64_t B[] = {0x5555555555555555ULL, 0x3333333333333333ULL,
+                                 0x0F0F0F0F0F0F0F0FULL, 0x00FF00FF00FF00FFULL,
+                                 0x0000FFFF0000FFFFULL};
+    static const unsigned int S[] = {1, 2, 4, 8, 16};
+    uint64_t x = xlo;
+    uint64_t y = ylo;
+		// step1
+    x = (x | (x << S[4])) & B[4];
+    y = (y | (y << S[4])) & B[4];
+		// step2
+    x = (x | (x << S[3])) & B[3];
+    y = (y | (y << S[3])) & B[3];
+		// step3
+    x = (x | (x << S[2])) & B[2];
+    y = (y | (y << S[2])) & B[2];
+		// step4
+    x = (x | (x << S[1])) & B[1];
+    y = (y | (y << S[1])) & B[1];
+		// step5
+    x = (x | (x << S[0])) & B[0];
+    y = (y | (y << S[0])) & B[0];
+
+    return x | (y << 1);
+}
+```
+
+Let's figure out what `interleave64` did in encoding
+
+
 
 # decode
 
