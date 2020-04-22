@@ -90,7 +90,9 @@ static inline uint64_t interleave64(uint32_t xlo, uint32_t ylo) {
 
 Let's figure out what `interleave64` did in encoding
 
+This is the value of `x` and `y` after `step1`
 
+![step1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step1.png)
 
 # decode
 
