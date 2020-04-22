@@ -68,19 +68,19 @@ static inline uint64_t interleave64(uint32_t xlo, uint32_t ylo) {
     static const unsigned int S[] = {1, 2, 4, 8, 16};
     uint64_t x = xlo;
     uint64_t y = ylo;
-		// step1
+    // step1
     x = (x | (x << S[4])) & B[4];
     y = (y | (y << S[4])) & B[4];
-		// step2
+    // step2
     x = (x | (x << S[3])) & B[3];
     y = (y | (y << S[3])) & B[3];
-		// step3
+    // step3
     x = (x | (x << S[2])) & B[2];
     y = (y | (y << S[2])) & B[2];
-		// step4
+    // step4
     x = (x | (x << S[1])) & B[1];
     y = (y | (y << S[1])) & B[1];
-		// step5
+    // step5
     x = (x | (x << S[0])) & B[0];
     y = (y | (y << S[0])) & B[0];
 
@@ -93,6 +93,18 @@ Let's figure out what `interleave64` did in encoding
 This is the value of `x` and `y` after `step1`
 
 ![step1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step1.png)
+
+The value of `x` and `y` after `step2`
+
+![step2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step2.png)
+
+After `step2`, the origin contiguous 4 bytes(32 bits) is evenly dirstributed in the new 8 bytes(64 bit) container
+
+![step3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step3.png) 
+
+Now, we can see that in each step, the contiguous bytes is seperated in different granularity
+
+
 
 # decode
 
