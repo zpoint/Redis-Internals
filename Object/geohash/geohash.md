@@ -100,11 +100,23 @@ The value of `x` and `y` after `step2`
 
 After `step2`, the origin contiguous 4 bytes(32 bits) is evenly dirstributed in the new 8 bytes(64 bit) container
 
+The value of `x` and `y` after `step3`
+
 ![step3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step3.png) 
 
-Now, we can see that in each step, the contiguous bytes is seperated in different granularity
+Now, we can learn that in each step, the contiguous bytes is seperated in different granularity
 
+The value of `x` and `y` after `step4`
 
+![step4](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step4.png)
+
+The granularity becomes 2 bits
+
+The final step seperates every single bit in the origin 32 bit integer, it's too large to fit into a single image, so we just ignore it
+
+And the final statement `x | (y << 1)` interleaves x and y
+
+![interleave](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/interleave.png)
 
 # decode
 
