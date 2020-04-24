@@ -112,7 +112,7 @@ The value of `x` and `y` after `step4`
 
 The granularity becomes 2 bits
 
-The final step seperates every single bit in the origin 32 bit integer, it's too large to fit into a single image, so we just ignore it
+The final step seperates every single bit in the origin 32 bit integer, it's too large to fit into a single image, so we will ignore `step5`
 
 And the final statement `x | (y << 1)` interleaves x and y
 
@@ -126,6 +126,12 @@ And the final statement `x | (y << 1)` interleaves x and y
 127.0.0.1:6379> geoadd my_key 113.936698 22.543764 my_location
 (integer) 1
 ```
+
+The decimal interleaved result after [encode](#encode) is `4046431618599387`,  after `encode`, `geoadd` will delegate the command to [zadd](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset.md#OBJ_ENCODING_ZIPLIST), which becomes
+
+![geoadd_ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/geoadd_ziplist.png)
+
+
 
 # read more
 

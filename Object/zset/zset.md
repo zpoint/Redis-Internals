@@ -105,11 +105,3 @@ There also exists a [hashtable](https://github.com/zpoint/Redis-Internals/blob/5
 The entry in hash table stores the address of **score** field, which is a pointer to a double
 
 So that in some command(i.e `ZSCORE`) you are able to find value and score by key in O(1) in the **hash table** instead of log(N) in **skiplist**
-
-```c
-
-
-
-
-```
-
