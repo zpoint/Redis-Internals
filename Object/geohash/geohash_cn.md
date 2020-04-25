@@ -1,28 +1,28 @@
 # geohash
 
-# contents
+# 目录
 
-* [related file](#related-file)
-* [memory layout](#memory-layout)
+* [相关位置文件](#相关位置文件)
+* [内存构造](#内存构造)
 * [encode](#encode)
 * [decode](#decode)
 * [geoadd](#geoadd)
 * [geohash](#geohash)
-* [read more](#read-more)
+* [更多资料](#更多资料)
 
-# related file
+# 相关位置文件
 * redis/src/geohash.c
 * redis/src/geohash.h
 * redis/src/geo.c
 * redis/src/geohash_helper.c
 
-# memory layout
+# 内存构造
 
 ![geo_hash](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/geo_hash.png)
 
 
 
-Let's begin with an example geo point `113.936698, 22.543764`
+我们以一个坐标点 `113.936698, 22.543764`为例进行示范
 
 # encode
 
@@ -34,20 +34,20 @@ Let's begin with an example geo point `113.936698, 22.543764`
 #define GEO_LONG_MAX 180
 ```
 
-The maximum value you can encode for a  LAT is 85.05/-85.05, which is the north/south pole
+你能进行存储的纬度的最大值/最小值是 85.05/-85.05, 也就是北极/南极附近的范围
 
-This is part of the encode code
+这是一部分 encode 的代码
 
 ```c
 int geohashEncode(...)
 {
-  /* omit */
+  /* 忽略 */
   double lat_offset =
       (latitude - lat_range->min) / (lat_range->max - lat_range->min);
   double long_offset =
       (longitude - long_range->min) / (long_range->max - long_range->min);
 
-  /* convert to fixed point based on the step size */
+  /* 根据设置的step大小, 转换为一个固定的值 */
   lat_offset *= (1ULL << step);
   long_offset *= (1ULL << step);
   hash->bits = interleave64(lat_offset, long_offset);
@@ -59,11 +59,11 @@ int geohashEncode(...)
 
 ![lon_offset](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/lon_offset.png)
 
-In our example, lat_offset is `(22.543764 - (-85.05112878))/(85.05112878 - (-85.05112878))` which is `0.632531`
+在我们的示例中, lat_offset 大小为 `(22.543764 - (-85.05112878))/(85.05112878 - (-85.05112878))` 也就是  `0.632531`
 
-lon_offset is `(113.936698 - (-180))/(180 - (-180))` which is `0.816491`
+lat_offset 的大小为 `(113.936698 - (-180))/(180 - (-180))` 也就是 `0.816491`
 
-The default `step` is `26`, so the last line will be `hash->bits = interleave64(42448413, 54793771); `
+默认的 `step` 大小为 `26`, 所以最后一行实际传入的值为 `hash->bits = interleave64(42448413, 54793771); `
 
 ```c
 static inline uint64_t interleave64(uint32_t xlo, uint32_t ylo) {
@@ -93,39 +93,39 @@ static inline uint64_t interleave64(uint32_t xlo, uint32_t ylo) {
 }
 ```
 
-Let's figure out what `interleave64` did in encoding
+我们来看看 `interleave64` 在 encoding 这一步中做了什么
 
-This is the value of `x` and `y` after `step1`
+这是`step1 `之后的  `x` 和 `y` 的值
 
 ![step1](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step1.png)
 
-The value of `x` and `y` after `step2`
+这是  `step2` 之后的  `x` 和 `y` 的值
 
 ![step2](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step2.png)
 
-After `step2`, the origin contiguous 4 bytes(32 bits) is evenly dirstributed in the new 8 bytes(64 bit) container(8bits per group)
+在  `step2` 之后, 原本的连续的4个字节(32个bit)被连续均匀的按照1个字节(8个bits)为一组分布在新的64bits大小的容器中
 
-The value of `x` and `y` after `step3`
+这是  `step3` 之后的  `x` 和 `y` 的值
 
 ![step3](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step3.png) 
 
-Now, we can learn that in each step, the contiguous bytes/bits is seperated in different granularity
+现在我们可以发现, 在每一个 `step3`  中, 连续的字节/比特会按照不同的颗粒度来进行重新分布
 
-The value of `x` and `y` after `step4`
+这是  `step4` 之后的  `x` 和 `y` 的值
 
 ![step4](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/step4.png)
 
-The granularity becomes 2 bits
+现在的颗粒度大小为 2bits(一组 2个bits)
 
-The final step seperates every single bit in the origin 32 bit integer, it's too large to fit into a single image, so we will ignore `step5`
+最后的一个 `step` 把每一个原本的32位的 bit 都均匀的分布在当前的容器内, 在一幅图中按bit为单位画出来太繁琐了, 所以我们就忽略 `step5` 的图像好了
 
-And the final statement `x | (y << 1)` interleaves x and y
+最后的  `x | (y << 1)` 把 x 和 y 交错在一起, 示例如下
 
 ![interleave](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/interleave.png)
 
 # decode
 
-The decode procedure is similar to the [encode](#encode) procedure, just reverse the left shift to right shift, and multiply to divide
+decode 的过程和  [encode](#encode) 的过程类似, 只需要把左移变成右移, 乘变成除
 
 # geoadd
 
@@ -134,7 +134,7 @@ The decode procedure is similar to the [encode](#encode) procedure, just reverse
 (integer) 1
 ```
 
-The decimal interleaved result after [encode](#encode) is `4046431618599387`,  after `encode`, `geoadd` will delegate the command to [zadd](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset.md#OBJ_ENCODING_ZIPLIST), which becomes
+[encode](#encode) 之后的十进制值为 `4046431618599387`, 在 `encode`之后, `geoadd` 会调用 [zadd](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/zset/zset_cn.md#OBJ_ENCODING_ZIPLIST)  命令对 `encode` 之后的值进行存储, 存储完之后的样子如图所示
 
 ![geoadd_ziplist](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/geohash/geoadd_ziplist.png)
 
@@ -145,7 +145,7 @@ The decimal interleaved result after [encode](#encode) is `4046431618599387`,  a
 1) "ws100xynvq0"
 ```
 
-This is part of source code
+这是源代码中的一部分
 
 ```c
 char *geoalphabet= "0123456789bcdefghjkmnpqrstuvwxyz";
@@ -158,7 +158,7 @@ for (i = 0; i < 11; i++) {
 buf[11] = '\0';
 ```
 
-The algorithm first get the encoded result, begin from the 13th bit, group every 5 bits together and get the base32 value of the bit group
+这个算法首先获取到 [encode](#encode) 之后的值, 从第 13个 bit 开始, 每 5个 bits 为一组, 获取到对应组的 base32 的值
 
 ``` 
 0000 0000 0000 |1110 0|110 0000 0010 0000 0000 0111 0111 1101 0100 1101 1101 1010
@@ -185,13 +185,11 @@ The algorithm first get the encoded result, begin from the 13th bit, group every
                                                                             0
 ```
 
-# read more
+最后一组负数位移可以参考 [shifting-with-a-negative-shift-count](https://stackoverflow.com/questions/4945703/left-shifting-with-a-negative-shift-count)
 
-About [shifting-with-a-negative-shift-count](https://stackoverflow.com/questions/4945703/left-shifting-with-a-negative-shift-count)
+相近的坐标点的 geohash 结果的前缀会是相同的, 我们可以把精度要求不是非常高的场景中的坐标点的查找变成字符串前缀查找, 比如附近的人/位置
 
-Those coordinates in near location will have same geohash string prefix. We can turn a coordinate search to a string prefix search in the scenario which does not requiring high accuracy result such as neraby people/location
-
-# read more
+# 更多资料
 
 * [Redis原理及实践之GeoHash](https://www.jianshu.com/p/c9801c4f9f6a)
 * [GeoHash核心原理解析](https://www.cnblogs.com/LBSer/p/3310455.html)
