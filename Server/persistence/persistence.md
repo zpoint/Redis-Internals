@@ -70,7 +70,7 @@ Let's read my `appendonly.aof` as example
 
 The first argument is `$6\r\n` follow by `SELECT\r\n`, it means the string length is 6, if you read the next 6 characters, `SELECT` is the target string with exact length 6
 
-The second argument is `$1\r\n` follow by `0\r\n`, it means the string lengtg is 1, if you read the next 1 character, you can get `0`
+The second argument is `$1\r\n` follow by `0\r\n`, it means the string length is 1, if you read the next 1 character, you can get `0`
 
 Together, it's `SELECT 0`
 

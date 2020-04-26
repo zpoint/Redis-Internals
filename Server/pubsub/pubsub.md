@@ -27,7 +27,7 @@ Reading messages... (press Ctrl-C to quit)
 
 ![sub](https://github.com/zpoint/Redis-Internals/blob/5.0/Server/pubsub/sub.png)
 
-[hash table](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT) is used for storing `pubsub_channels`, A [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) with string repreentatiomn `c100` is stored inside the `pubsub_channels` as key, For server, a list of client is stored as value
+[hash table](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/hash/hash.md#OBJ_ENCODING_HT) is used for storing `pubsub_channels`, A [sds](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md) with string representation `c100` is stored inside the `pubsub_channels` as key, For server, a list of client is stored as value
 
 For client, value field stores a `NULL` pointer
 
