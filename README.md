@@ -19,6 +19,8 @@ git reset --hard 388efbf8b661ce2e5db447e994bf3c3caf6403c6
 * [Server](#Server)
 * [Why this repo](#Why-this-repo)
 * [Learning material](#Learning-material)
+* [Contribution](#Contribution)
+* [License](#License)
 
 # Objects
  - [x] [string(sds)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds.md)
@@ -56,3 +58,23 @@ git reset --hard 388efbf8b661ce2e5db447e994bf3c3caf6403c6
 * [Redis 设计与实现](http://redisbook.com/)
 * [Redis Documentation](https://redis.io/documentation)
 * [Redis 5.0 RELEASENOTES](https://raw.githubusercontent.com/antirez/redis/5.0/00-RELEASENOTES)
+
+# Contribution
+
+All kinds of contributions are welcome
+
+* submit a pull request
+  *  if you want to share any knowledge you know
+  * post a new article
+  * correct any technical mistakes
+  * correct english grammar
+  * translation
+  * anything else
+* open an issue 
+  * any suggestions
+  * any questions
+  * correct mistakes
+  * anything else
+
+# [License](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+

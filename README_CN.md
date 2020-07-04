@@ -19,6 +19,8 @@ git reset --hard 388efbf8b661ce2e5db447e994bf3c3caf6403c6
 * [服务](#服务)
 * [为什么创建这个仓库](#为什么创建这个仓库)
 * [学习资料](#学习资料)
+* [参与贡献](#参与贡献)
+* [授权](#授权)
 
 # 基本对象
  - [x] [字符串/string(sds)](https://github.com/zpoint/Redis-Internals/blob/5.0/Object/sds/sds_cn.md)
@@ -50,7 +52,26 @@ git reset --hard 388efbf8b661ce2e5db447e994bf3c3caf6403c6
 * 在 [学习资料](#学习资料) 中有非常棒的中文书籍可以参考, 但是没有类似的英文资料
 * [Redis 设计与实现](http://redisbook.com/) 一书当前是基于 redis 3.0 版本的(我读的时候是旧版 基于2.x版本), 即使是 redis 3.0 到当前版本许多实现细节也发生了变化
 
-# 学习资料
+# 参与贡献学习资料
 * [Redis 设计与实现](http://redisbook.com/)
 * [Redis Documentation](https://redis.io/documentation)
 * [Redis 5.0 RELEASENOTES](https://raw.githubusercontent.com/antirez/redis/5.0/00-RELEASENOTES)
+
+## 参与贡献
+
+欢迎所有形式的贡献
+
+* 提交一个 pull request
+  * 如果你想分享任何你知道的相关知识
+  *  发布一篇文章
+  * 更正技术性错误
+  * 更正语法性错误
+  * 翻译
+  * 其他情况, 不限于上述
+* 提交一个 issue 
+  * 任何建议
+  * 任何问题
+  * 更正错误
+  * 其他情况, 不限于上述
+
+# [授权](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh)
