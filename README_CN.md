@@ -1,4 +1,4 @@
-# Redis Internals
+# Redis Internals![image title](http://www.zpoint.xyz:8080/count/tag.svg?url=github%2FRedis-Internals-CN)
 
 * [English](https://github.com/zpoint/Redis-Internals/blob/5.0/README.md)
 * 如果你需要接收更新通知, 点击右上角的 **Watch**, 当有文章更新时会在 issue 发布相关标题和链接

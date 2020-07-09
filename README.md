@@ -1,4 +1,4 @@
-# Redis Internals
+# Redis Internals![image title](http://www.zpoint.xyz:8080/count/tag.svg?url=github%2FRedis-Internals)
 
 * [简体中文](https://github.com/zpoint/Redis-Internals/blob/5.0/README_CN.md)
 *  **Watch** this repo if you need to be notified when there's update
